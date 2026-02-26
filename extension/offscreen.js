@@ -50,7 +50,8 @@ function setupPeer(peerId, userId) {
   });
 
   peer.on('connection', (incoming) => {
-    if (conn && conn.open) { incoming.close(); return; }
+    // Last connection wins — kick any existing session so a fresh phone tab always works.
+    if (conn && conn.open) closeConn();
 
     conn = incoming;
     phoneVerified = false;
