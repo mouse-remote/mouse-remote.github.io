@@ -5,166 +5,113 @@
   <title>Mouse Remote</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: 280px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e8f0; }
 
-    body {
-      width: 280px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f0f13;
-      color: #e2e8f0;
-    }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 14px 16px 12px;
-      border-bottom: 1px solid #1e1e2e;
-    }
-
+    header { display: flex; align-items: center; gap: 8px; padding: 14px 16px 12px; border-bottom: 1px solid #1e1e2e; }
     header svg { flex-shrink: 0; }
-
-    header h1 {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #374151;
-      margin-left: auto;
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
+    header h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #374151; margin-left: auto; flex-shrink: 0; transition: background 0.3s; }
     .status-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
-    .status-dot.waiting   { background: #f59e0b; box-shadow: 0 0 6px #f59e0b60; animation: pulse 1.5s infinite; }
-
-    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+    .status-dot.waiting   { background: #f59e0b; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
     .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
 
-    .label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #6b7280;
-      margin-bottom: 4px;
-    }
+    /* Auth — signed in */
+    #auth-authed { display: none; align-items: center; gap: 10px; }
+    #auth-authed.visible { display: flex; }
+    #auth-authed img { width: 32px; height: 32px; border-radius: 50%; }
+    #authed-name { font-size: 13px; font-weight: 500; flex: 1; }
+    #authed-sub  { display: block; font-size: 10px; color: #6b7280; font-weight: 400; margin-top: 1px; }
 
-    .peer-id {
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 13px;
-      background: #1a1a2e;
-      border: 1px solid #2d2d3e;
-      border-radius: 6px;
-      padding: 8px 10px;
-      word-break: break-all;
-      color: #a78bfa;
-      min-height: 32px;
-    }
+    /* Auth — signed out */
+    #auth-anon { display: none; flex-direction: column; gap: 8px; }
+    #auth-anon.visible { display: flex; }
 
+    button { cursor: pointer; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; padding: 7px 11px; transition: background 0.15s; }
+    .btn-github { display: flex; align-items: center; justify-content: center; gap: 8px; background: #24292f; color: #fff; padding: 10px; width: 100%; }
+    .btn-github:hover { background: #353b43; }
+    .btn-signout { background: #1a1a2e; color: #6b7280; font-size: 11px; padding: 5px 8px; border-radius: 5px; }
+    .btn-signout:hover { background: #2d1b1b; color: #f87171; }
+
+    .status-text { font-size: 11px; color: #6b7280; text-align: center; }
+    .status-text.connected { color: #22c55e; }
+
+    /* Manual section (shown when signed out) */
+    #manual-section { display: none; flex-direction: column; gap: 8px; border-top: 1px solid #1e1e2e; padding-top: 12px; }
+    #manual-section.visible { display: flex; }
+
+    .peer-id { font-family: 'SF Mono','Fira Code',monospace; font-size: 13px; background: #1a1a2e; border: 1px solid #2d2d3e; border-radius: 6px; padding: 8px 10px; word-break: break-all; color: #a78bfa; min-height: 32px; }
     .peer-id.loading { color: #4b5563; font-style: italic; font-size: 11px; }
 
-    .url-row {
-      display: flex;
-      gap: 6px;
-    }
-
-    .url-box {
-      flex: 1;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 10px;
-      background: #1a1a2e;
-      border: 1px solid #2d2d3e;
-      border-radius: 6px;
-      padding: 7px 8px;
-      color: #60a5fa;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      cursor: default;
-      user-select: all;
-    }
+    .url-row { display: flex; gap: 6px; }
+    .url-box { flex: 1; font-family: 'SF Mono','Fira Code',monospace; font-size: 10px; background: #1a1a2e; border: 1px solid #2d2d3e; border-radius: 6px; padding: 7px 8px; color: #60a5fa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: all; }
     .url-box.loading { color: #4b5563; }
 
-    button {
-      cursor: pointer;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      padding: 7px 11px;
-      transition: background 0.15s, transform 0.1s;
-    }
-    button:active { transform: scale(0.96); }
-
-    .btn-copy {
-      background: #2d2d3e;
-      color: #e2e8f0;
-      white-space: nowrap;
-    }
+    .btn-copy { background: #2d2d3e; color: #e2e8f0; white-space: nowrap; }
     .btn-copy:hover { background: #383852; }
     .btn-copy.copied { background: #166534; color: #bbf7d0; }
 
-    .btn-open {
-      width: 100%;
-      background: #4f46e5;
-      color: #fff;
-      padding: 9px;
-    }
+    .btn-open { width: 100%; background: #4f46e5; color: #fff; padding: 9px; }
     .btn-open:hover { background: #6366f1; }
     .btn-open:disabled { background: #2d2d3e; color: #4b5563; cursor: default; }
 
-    .status-text {
-      font-size: 11px;
-      color: #6b7280;
-      text-align: center;
-    }
-    .status-text.connected { color: #22c55e; }
-
-    footer {
-      padding: 10px 16px;
-      border-top: 1px solid #1e1e2e;
-      font-size: 10px;
-      color: #374151;
-      text-align: center;
-    }
+    footer { padding: 10px 16px; border-top: 1px solid #1e1e2e; font-size: 10px; color: #374151; text-align: center; }
   </style>
 </head>
 <body>
   <header>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2"/>
-      <line x1="12" y1="18" x2="12" y2="18.01"/>
+      <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/>
     </svg>
     <h1>Mouse Remote</h1>
     <div class="status-dot" id="dot"></div>
   </header>
 
   <div class="body">
-    <div>
-      <div class="label">Peer ID</div>
-      <div class="peer-id loading" id="peer-id">initializing…</div>
-    </div>
 
-    <div>
-      <div class="label">Phone link</div>
-      <div class="url-row">
-        <div class="url-box loading" id="url-box">waiting for peer…</div>
-        <button class="btn-copy" id="btn-copy">Copy</button>
+    <!-- Signed in -->
+    <div id="auth-authed">
+      <img id="avatar" src="" alt="">
+      <div style="flex:1">
+        <div id="authed-name"></div>
+        <small id="authed-sub">Signed in via GitHub</small>
       </div>
+      <button class="btn-signout" id="btn-signout">Sign out</button>
     </div>
 
-    <button class="btn-open" id="btn-open" disabled>Open on Phone</button>
+    <!-- Signed out -->
+    <div id="auth-anon">
+      <button class="btn-github" id="btn-signin">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        Sign in with GitHub
+      </button>
+      <div class="status-text">Sign in for auto-connect — no peer ID needed</div>
+    </div>
 
+    <!-- Connection status -->
     <div class="status-text" id="status-text">Waiting for phone to connect…</div>
+
+    <!-- Manual section (no-auth fallback) -->
+    <div id="manual-section">
+      <div>
+        <div class="label">Peer ID</div>
+        <div class="peer-id loading" id="peer-id">initializing…</div>
+      </div>
+      <div>
+        <div class="label">Phone link</div>
+        <div class="url-row">
+          <div class="url-box loading" id="url-box">waiting…</div>
+          <button class="btn-copy" id="btn-copy">Copy</button>
+        </div>
+      </div>
+      <button class="btn-open" id="btn-open" disabled>Open on Phone</button>
+    </div>
+
   </div>
 
-  <footer>Tip: scan or paste the link on your phone</footer>
-
+  <footer>Mouse Remote · mouse-remote.github.io</footer>
   <script src="popup.js"></script>
 </body>
 </html>

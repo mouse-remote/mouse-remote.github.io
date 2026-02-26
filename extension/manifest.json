@@ -1,14 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Mouse Remote",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Control your browser with your phone via WebRTC P2P",
-  "permissions": ["debugger", "tabs", "offscreen"],
+  "permissions": ["debugger", "tabs", "offscreen", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mouse-remote.github.io/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

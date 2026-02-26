@@ -1,8 +1,9 @@
 // Background service worker
-// Manages: offscreen document (WebRTC via PeerJS), debugger, mouse dispatch
+// Manages: auth state, offscreen document (WebRTC), debugger, mouse dispatch
 
 let state = {
-  peerId: null,
+  auth: null,          // { token, user } — loaded from chrome.storage.local
+  peerId: null,        // current PeerJS peer ID
   connected: false,
   cursorX: 640,
   cursorY: 400,
@@ -10,23 +11,54 @@ let state = {
   debuggerAttached: false,
 };
 
-// --- Offscreen document (keeps WebRTC alive across popup open/close) ---
+function derivePeerId(userId) { return 'mr-' + userId; }
 
-async function ensureOffscreen() {
+// ── Auth ──────────────────────────────────────────────────────────────────
+
+async function loadAuth() {
+  const { auth } = await chrome.storage.local.get('auth');
+  if (auth) state.auth = auth;
+}
+
+async function saveAuth(auth) {
+  state.auth = auth;
+  await chrome.storage.local.set({ auth });
+}
+
+async function clearAuth() {
+  state.auth = null;
+  await chrome.storage.local.remove('auth');
+}
+
+// ── Offscreen document ────────────────────────────────────────────────────
+// The offscreen doc hosts the PeerJS WebRTC peer so it survives popup close/open.
+// On startup it sends OFFSCREEN_READY → background responds with peer config.
+// On auth change → background broadcasts SET_PEER to trigger reinit.
+
+async function initOffscreenPeer() {
   const existing = await chrome.runtime.getContexts({
     contextTypes: ['OFFSCREEN_DOCUMENT'],
     documentUrls: [chrome.runtime.getURL('offscreen.html')],
   });
-  if (existing.length > 0) return;
 
-  await chrome.offscreen.createDocument({
-    url: 'offscreen.html',
-    reasons: [chrome.offscreen.Reason.WEB_RTC],
-    justification: 'P2P WebRTC peer connection for phone mouse remote',
-  });
+  if (existing.length > 0) {
+    // Already running — send auth update directly
+    chrome.runtime.sendMessage({
+      type: 'SET_PEER',
+      peerId: state.auth ? derivePeerId(state.auth.user.id) : null,
+      expectedUserId: state.auth ? state.auth.user.id : null,
+    }).catch(() => {});
+  } else {
+    // Create fresh — it will send OFFSCREEN_READY when its scripts have loaded
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: [chrome.offscreen.Reason.WEB_RTC],
+      justification: 'P2P WebRTC peer connection for phone mouse remote',
+    });
+  }
 }
 
-// --- Debugger ---
+// ── Debugger ──────────────────────────────────────────────────────────────
 
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -44,10 +76,8 @@ function isAttachable(tab) {
 async function ensureDebugger() {
   const tab = await getActiveTab();
   if (!tab || !isAttachable(tab)) return false;
-
   if (state.debuggerAttached && state.tabId === tab.id) return true;
 
-  // Detach from previous tab if needed
   if (state.debuggerAttached && state.tabId) {
     try { await chrome.debugger.detach({ tabId: state.tabId }); } catch (_) {}
     state.debuggerAttached = false;
@@ -65,10 +95,7 @@ async function ensureDebugger() {
 }
 
 chrome.debugger.onDetach.addListener((source) => {
-  if (source.tabId === state.tabId) {
-    state.debuggerAttached = false;
-    state.tabId = null;
-  }
+  if (source.tabId === state.tabId) { state.debuggerAttached = false; state.tabId = null; }
 });
 
 async function sendDebuggerEvent(params) {
@@ -80,31 +107,21 @@ async function sendDebuggerEvent(params) {
   }
 }
 
-// --- Mouse event dispatch ---
+// ── Mouse events ──────────────────────────────────────────────────────────
 
 async function handleMouseEvent(event) {
   const ok = await ensureDebugger();
   if (!ok) return;
 
   const tab = await getActiveTab();
-  const w = tab?.width || 1280;
-  const h = tab?.height || 800;
+  const w = tab?.width || 1280, h = tab?.height || 800;
 
   switch (event.type) {
-    case 'move': {
+    case 'move':
       state.cursorX = Math.max(0, Math.min(w - 1, state.cursorX + event.dx));
       state.cursorY = Math.max(0, Math.min(h - 1, state.cursorY + event.dy));
-      await sendDebuggerEvent({
-        type: 'mouseMoved',
-        x: state.cursorX,
-        y: state.cursorY,
-        button: 'none',
-        buttons: 0,
-        modifiers: 0,
-        pointerType: 'mouse',
-      });
+      await sendDebuggerEvent({ type: 'mouseMoved', x: state.cursorX, y: state.cursorY, button: 'none', buttons: 0, modifiers: 0, pointerType: 'mouse' });
       break;
-    }
     case 'click': {
       const { cursorX: x, cursorY: y } = state;
       await sendDebuggerEvent({ type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1, modifiers: 0, pointerType: 'mouse' });
@@ -117,56 +134,92 @@ async function handleMouseEvent(event) {
       await sendDebuggerEvent({ type: 'mouseReleased', x, y, button: 'right', buttons: 0, clickCount: 1, modifiers: 0, pointerType: 'mouse' });
       break;
     }
-    case 'scroll': {
-      await sendDebuggerEvent({
-        type: 'mouseWheel',
-        x: state.cursorX,
-        y: state.cursorY,
-        deltaX: event.dx || 0,
-        deltaY: event.dy || 0,
-        modifiers: 0,
-        pointerType: 'mouse',
-      });
+    case 'scroll':
+      await sendDebuggerEvent({ type: 'mouseWheel', x: state.cursorX, y: state.cursorY, deltaX: event.dx || 0, deltaY: event.dy || 0, modifiers: 0, pointerType: 'mouse' });
       break;
-    }
   }
 }
 
-// --- Broadcast to popup (best-effort, popup may be closed) ---
+// ── Broadcast helpers ─────────────────────────────────────────────────────
 
 function broadcast(message) {
   chrome.runtime.sendMessage(message).catch(() => {});
 }
 
-// --- Message bus ---
+function publicState() {
+  return {
+    peerId: state.peerId,
+    connected: state.connected,
+    // Expose user info to popup but never the raw token
+    user: state.auth?.user || null,
+  };
+}
+
+// ── Message bus ───────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   switch (message.type) {
-    case 'GET_STATE':
-      sendResponse({ peerId: state.peerId, connected: state.connected });
-      return true; // keep channel open for async response
 
+    // Popup asks for initial state
+    case 'GET_STATE':
+      sendResponse(publicState());
+      return true;
+
+    // Offscreen doc just loaded — tell it which peer to create
+    case 'OFFSCREEN_READY':
+      sendResponse({
+        peerId: state.auth ? derivePeerId(state.auth.user.id) : null,
+        expectedUserId: state.auth ? state.auth.user.id : null,
+      });
+      return true;
+
+    // Content script picked up auth from the phone page (localStorage)
+    case 'AUTH_FROM_PAGE':
+      saveAuth(message.auth).then(() => {
+        initOffscreenPeer();
+        broadcast({ type: 'STATE_UPDATE', ...publicState() });
+      });
+      break;
+
+    // Popup sign-out button
+    case 'SIGN_OUT':
+      clearAuth().then(() => {
+        initOffscreenPeer();
+        broadcast({ type: 'STATE_UPDATE', ...publicState() });
+      });
+      break;
+
+    // From offscreen: peer server connection opened
     case 'PEER_READY':
       state.peerId = message.peerId;
-      broadcast({ type: 'STATE_UPDATE', peerId: state.peerId, connected: state.connected });
+      broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
+    // From offscreen: phone connected and verified
     case 'PEER_CONNECTED':
       state.connected = true;
-      broadcast({ type: 'STATE_UPDATE', peerId: state.peerId, connected: true });
+      broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
+    // From offscreen: phone disconnected
     case 'PEER_DISCONNECTED':
       state.connected = false;
-      broadcast({ type: 'STATE_UPDATE', peerId: state.peerId, connected: false });
+      broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
+    // From offscreen: incoming mouse event
     case 'MOUSE_EVENT':
       handleMouseEvent(message.event);
       break;
   }
 });
 
-// Init on install / startup
-ensureOffscreen().catch(console.error);
-chrome.runtime.onStartup.addListener(() => ensureOffscreen().catch(console.error));
+// ── Init ──────────────────────────────────────────────────────────────────
+
+async function init() {
+  await loadAuth();
+  await initOffscreenPeer();
+}
+
+init().catch(console.error);
+chrome.runtime.onStartup.addListener(() => init().catch(console.error));

@@ -11,288 +11,122 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     :root {
-      --bg: #0a0a0f;
-      --surface: #12121a;
-      --border: #1e1e2e;
-      --accent: #7c3aed;
-      --accent-dim: #4c1d95;
-      --green: #22c55e;
-      --amber: #f59e0b;
-      --text: #e2e8f0;
-      --muted: #6b7280;
-      --pad-bg: #0d0d14;
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --accent: #7c3aed; --accent-dim: #4c1d95;
+      --green: #22c55e; --amber: #f59e0b; --red: #f87171;
+      --text: #e2e8f0; --muted: #6b7280;
     }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      overflow: hidden;
-      touch-action: none;
-    }
+    /* ── Layout ─────────────────────── */
+    #app { height: 100%; display: flex; flex-direction: column; }
 
-    /* ─── Layout ─────────────────────────────────────────────── */
-
-    #app {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ─── Top bar ─────────────────────────────────────────────── */
-
-    #topbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    #status-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #374151;
-      transition: background 0.3s;
-      flex-shrink: 0;
-    }
+    /* ── Top bar ────────────────────── */
+    #topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #status-dot { width: 9px; height: 9px; border-radius: 50%; background: #374151; transition: background 0.3s; flex-shrink: 0; }
     #status-dot.connected  { background: var(--green); box-shadow: 0 0 8px #22c55e60; }
     #status-dot.connecting { background: var(--amber); animation: pulse 1.2s infinite; }
-
+    #status-dot.error      { background: var(--red); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-    #status-label {
-      font-size: 13px;
-      color: var(--muted);
-      flex: 1;
-    }
+    #status-label { font-size: 13px; color: var(--muted); flex: 1; }
     #status-label.connected { color: var(--green); }
 
-    #sensitivity-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    #sensitivity-wrap label { font-size: 11px; color: var(--muted); }
-    #sensitivity {
-      -webkit-appearance: none;
-      width: 70px;
-      height: 3px;
-      background: var(--border);
-      border-radius: 2px;
-      outline: none;
-    }
-    #sensitivity::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-    }
+    #user-chip { display: none; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    #user-chip.visible { display: flex; }
+    #user-chip img { width: 20px; height: 20px; border-radius: 50%; }
+    #user-chip button { background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; padding: 2px 5px; border-radius: 3px; }
+    #user-chip button:hover { color: var(--red); }
 
-    /* ─── Connect panel (shown when disconnected) ─────────────── */
+    #speed-wrap { display: none; align-items: center; gap: 6px; }
+    #speed-wrap.visible { display: flex; }
+    #speed-wrap label { font-size: 11px; color: var(--muted); }
+    #speed { -webkit-appearance: none; width: 70px; height: 3px; background: var(--border); border-radius: 2px; outline: none; }
+    #speed::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
 
-    #connect-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 24px;
-    }
+    /* ── Screens ─────────────────────── */
+    .screen { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; gap: 18px; text-align: center; }
+    .screen.active { display: flex; }
+    .screen h2 { font-size: 22px; font-weight: 700; }
+    .screen p  { font-size: 14px; color: var(--muted); line-height: 1.6; max-width: 300px; }
 
-    #connect-panel h2 {
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    #connect-panel p {
-      font-size: 13px;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.5;
-    }
-
-    #peer-input {
-      width: 100%;
-      max-width: 320px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-size: 15px;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      padding: 12px 14px;
-      outline: none;
-      text-align: center;
-      letter-spacing: 0.05em;
-    }
+    /* Auth gate */
+    .github-btn { display: flex; align-items: center; justify-content: center; gap: 10px; background: #24292f; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; padding: 14px 24px; cursor: pointer; width: 100%; max-width: 300px; transition: background 0.15s; }
+    .github-btn:hover { background: #353b43; }
+    .divider { font-size: 12px; color: var(--muted); }
+    #peer-input { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 15px; font-family: 'SF Mono','Fira Code',monospace; padding: 12px 14px; outline: none; text-align: center; letter-spacing: 0.05em; width: 100%; max-width: 300px; }
     #peer-input:focus { border-color: var(--accent); }
     #peer-input::placeholder { color: var(--muted); letter-spacing: 0; font-style: italic; font-family: inherit; }
+    #btn-manual-go { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; font-weight: 500; padding: 12px; cursor: pointer; width: 100%; max-width: 300px; transition: background 0.15s; }
+    #btn-manual-go:hover { background: #1e1e2e; }
+    #btn-manual-go:disabled { color: var(--muted); cursor: default; }
+    #auth-error { font-size: 12px; color: var(--red); max-width: 280px; display: none; }
 
-    #btn-connect {
-      width: 100%;
-      max-width: 320px;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
-      padding: 14px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    #btn-connect:hover { background: #6d28d9; }
-    #btn-connect:disabled { background: #2d2d3e; color: var(--muted); cursor: default; }
+    /* Connecting */
+    .spinner { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #conn-label { font-size: 16px; font-weight: 500; }
+    #conn-sub   { font-size: 13px; color: var(--muted); }
+    #btn-abort  { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; font-size: 13px; padding: 8px 16px; cursor: pointer; }
+    #btn-abort:hover { border-color: var(--red); color: var(--red); }
+    #conn-error { font-size: 12px; color: var(--red); display: none; max-width: 280px; }
 
-    #error-msg {
-      font-size: 12px;
-      color: #f87171;
-      display: none;
-    }
+    /* ── Touchpad ────────────────────── */
+    #touchpad-view { flex: 1; display: none; flex-direction: column; }
+    #touchpad-view.active { display: flex; }
+    #touchpad { flex: 1; background: #0d0d14; position: relative; touch-action: none; user-select: none; }
 
-    /* ─── Touchpad (shown when connected) ─────────────────────── */
+    .ripple { position: absolute; width: 48px; height: 48px; border-radius: 50%; background: rgba(124,58,237,0.25); transform: translate(-50%,-50%) scale(0); pointer-events: none; animation: ripple-out 0.5s ease-out forwards; }
+    @keyframes ripple-out { to { transform: translate(-50%,-50%) scale(2.5); opacity: 0; } }
 
-    #touchpad-view {
-      flex: 1;
-      display: none;
-      flex-direction: column;
-    }
-    #touchpad-view.visible { display: flex; }
-
-    #touchpad {
-      flex: 1;
-      background: var(--pad-bg);
-      position: relative;
-      cursor: none;
-      touch-action: none;
-      user-select: none;
-    }
-
-    /* Visual ripple on touch */
-    .ripple {
-      position: absolute;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: rgba(124, 58, 237, 0.25);
-      transform: translate(-50%, -50%) scale(0);
-      pointer-events: none;
-      animation: ripple-anim 0.5s ease-out forwards;
-    }
-    @keyframes ripple-anim {
-      to { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
-    }
-
-    /* Scroll mode overlay */
-    #scroll-hint {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(10, 10, 15, 0.55);
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--amber);
-      letter-spacing: 0.05em;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
+    #scroll-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10,10,15,0.55); font-size: 15px; font-weight: 500; color: var(--amber); pointer-events: none; opacity: 0; transition: opacity 0.2s; }
     #scroll-hint.visible { opacity: 1; }
+    #pad-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: rgba(255,255,255,0.05); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; pointer-events: none; }
 
-    /* Pad label */
-    #pad-label {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      color: rgba(255,255,255,0.06);
-      font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      pointer-events: none;
-      user-select: none;
-    }
-
-    /* ─── Action bar ───────────────────────────────────────────── */
-
-    #actionbar {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .action-btn {
-      background: var(--surface);
-      border: none;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 500;
-      padding: 16px 8px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      border-right: 1px solid var(--border);
-      transition: background 0.1s, color 0.1s;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+    #actionbar { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .action-btn { background: var(--surface); border: none; color: var(--muted); font-size: 12px; font-weight: 500; padding: 16px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; border-right: 1px solid var(--border); transition: background 0.1s, color 0.1s; user-select: none; -webkit-user-select: none; }
     .action-btn:last-child { border-right: none; }
     .action-btn:active { background: #1e1e30; }
     .action-btn.active { background: var(--accent-dim); color: #c4b5fd; }
-
-    .action-btn svg { opacity: 0.7; }
-    .action-btn.active svg { opacity: 1; }
-
-    /* Disconnect button */
-    #btn-disconnect {
-      display: none;
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 12px;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-    #btn-disconnect:hover { color: #f87171; }
-    #btn-disconnect.visible { display: block; }
   </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- Top bar -->
   <div id="topbar">
     <div id="status-dot"></div>
-    <span id="status-label">Not connected</span>
-    <button id="btn-disconnect">Disconnect</button>
-    <div id="sensitivity-wrap">
-      <label for="sensitivity">Speed</label>
-      <input type="range" id="sensitivity" min="0.5" max="4" step="0.1" value="1.5">
+    <span id="status-label">Mouse Remote</span>
+    <div id="user-chip">
+      <img id="user-avatar" src="" alt="">
+      <span id="user-name"></span>
+      <button id="btn-signout" title="Sign out">✕</button>
+    </div>
+    <div id="speed-wrap">
+      <label for="speed">Speed</label>
+      <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.5">
     </div>
   </div>
 
-  <!-- Connect panel -->
-  <div id="connect-panel">
+  <!-- Screen: sign in / manual peer ID -->
+  <div class="screen" id="screen-auth">
     <h2>Mouse Remote</h2>
-    <p>Enter the Peer ID shown in the Chrome extension popup, or open this page via the link in the popup.</p>
-    <input id="peer-input" type="text" placeholder="Paste Peer ID here" autocomplete="off" autocorrect="off" spellcheck="false">
-    <span id="error-msg"></span>
-    <button id="btn-connect" disabled>Connect</button>
+    <p>Sign in to auto-connect to your browser extension.</p>
+    <button class="github-btn" id="btn-github">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      Sign in with GitHub
+    </button>
+    <span class="divider">— or enter Peer ID manually —</span>
+    <input id="peer-input" type="text" placeholder="Paste Peer ID from extension" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="btn-manual-go" disabled>Connect</button>
+    <span id="auth-error"></span>
+  </div>
+
+  <!-- Screen: connecting -->
+  <div class="screen" id="screen-connecting">
+    <div class="spinner"></div>
+    <span id="conn-label">Connecting…</span>
+    <p id="conn-sub"></p>
+    <button id="btn-abort">Cancel</button>
+    <span id="conn-error"></span>
   </div>
 
   <!-- Touchpad -->
@@ -302,23 +136,16 @@
       <div id="scroll-hint">↕ Scroll mode</div>
     </div>
     <div id="actionbar">
-      <button class="action-btn" id="btn-lclick" title="Left Click">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M5 3h6v8H5z"/><path d="M13 3h6v8h-6z"/><rect x="3" y="11" width="18" height="10" rx="2"/>
-        </svg>
+      <button class="action-btn" id="btn-lclick">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h6v8H5z"/><path d="M13 3h6v8h-6z"/><rect x="3" y="11" width="18" height="10" rx="2"/></svg>
         Left Click
       </button>
-      <button class="action-btn" id="btn-scroll" title="Toggle Scroll Mode">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2v20M5 9l7-7 7 7M5 15l7 7 7-7"/>
-        </svg>
+      <button class="action-btn" id="btn-scroll">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 9l7-7 7 7M5 15l7 7 7-7"/></svg>
         Scroll
       </button>
-      <button class="action-btn" id="btn-rclick" title="Right Click">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M13 3h6v8h-6z"/><path d="M5 3h6v8H5z"/><rect x="3" y="11" width="18" height="10" rx="2"/>
-          <line x1="12" y1="11" x2="12" y2="21"/>
-        </svg>
+      <button class="action-btn" id="btn-rclick">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 3h6v8h-6z"/><path d="M5 3h6v8H5z"/><rect x="3" y="11" width="18" height="10" rx="2"/><line x1="12" y1="11" x2="12" y2="21"/></svg>
         Right Click
       </button>
     </div>
@@ -327,244 +154,233 @@
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script>
-// ─── PeerJS connection ───────────────────────────────────────────────────────
+<script type="module">
+import { getAuth, saveAuth, logout, startLogin, handleCallback, derivePeerId, CLIENT_ID } from './auth.js';
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('touchpad-view').classList.remove('active');
+  $('speed-wrap').classList.remove('visible');
+  if (name === 'touchpad') {
+    $('touchpad-view').classList.add('active');
+    $('speed-wrap').classList.add('visible');
+  } else {
+    $('screen-' + name).classList.add('active');
+  }
+}
+
+function setStatus(text, dot) {
+  $('status-label').textContent = text;
+  $('status-label').className = dot === 'connected' ? 'connected' : '';
+  $('status-dot').className = dot || '';
+}
+
+function showUser(user) {
+  if (!user) { $('user-chip').classList.remove('visible'); return; }
+  $('user-avatar').src = user.avatar_url;
+  $('user-name').textContent = user.login;
+  $('user-chip').classList.add('visible');
+}
+
+function showError(id, msg) { const e = $(id); e.textContent = msg; e.style.display = 'block'; }
+function hideError(id) { $(id).style.display = 'none'; }
+
+// ── Connection ─────────────────────────────────────────────────────────────
+let auth = null;
 let peer = null;
 let conn = null;
 let isScrollMode = false;
+let retryTimer = null;
 
-const PEER_ID_KEY = 'mouseremote_last_peer';
+const urlParams = new URLSearchParams(location.search);
+const manualPeerId = urlParams.get('peer'); // set by extension popup "Open on Phone" link
 
-// Read peer ID from URL (?peer=…) or saved value
-function getInitialPeerId() {
-  const params = new URLSearchParams(location.search);
-  return params.get('peer') || localStorage.getItem(PEER_ID_KEY) || '';
-}
+function send(event) { if (conn && conn.open) conn.send(event); }
 
-function setStatus(label, dotClass) {
-  document.getElementById('status-label').textContent = label;
-  document.getElementById('status-label').className = dotClass === 'connected' ? 'connected' : '';
-  document.getElementById('status-dot').className = dotClass;
-}
+function clearRetry() { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } }
 
-function showConnectPanel() {
-  document.getElementById('connect-panel').style.display = '';
-  document.getElementById('touchpad-view').classList.remove('visible');
-  document.getElementById('btn-disconnect').classList.remove('visible');
-}
+function connectToPeer(peerId, { sendAuth = false, autoRetry = false } = {}) {
+  clearRetry();
+  hideError('conn-error');
 
-function showTouchpad() {
-  document.getElementById('connect-panel').style.display = 'none';
-  document.getElementById('touchpad-view').classList.add('visible');
-  document.getElementById('btn-disconnect').classList.add('visible');
-}
-
-function initPeer() {
-  if (peer && !peer.destroyed) peer.destroy();
-
-  peer = new Peer({ debug: 0 });
-
-  peer.on('open', () => {
-    const targetId = document.getElementById('peer-input').value.trim();
-    if (targetId) connectToPeer(targetId);
-  });
-
-  peer.on('error', (err) => {
-    showError(err.message || String(err));
-    setStatus('Connection error', '');
-    document.getElementById('btn-connect').disabled = false;
-  });
-}
-
-function connectToPeer(peerId) {
   if (!peer || peer.destroyed) {
-    initPeer();
-    // will auto-connect once peer opens
+    peer = new Peer({ debug: 0 });
+    peer.on('open', () => doConnect(peerId, { sendAuth, autoRetry }));
+    peer.on('error', err => onPeerError(err, peerId, { sendAuth, autoRetry }));
     return;
   }
+  doConnect(peerId, { sendAuth, autoRetry });
+}
 
+function doConnect(peerId, opts) {
+  $('conn-label').textContent = opts.sendAuth ? 'Connecting to your browser…' : 'Connecting…';
+  $('conn-sub').textContent = opts.sendAuth ? 'Open the Mouse Remote extension.' : '';
+  showScreen('connecting');
   setStatus('Connecting…', 'connecting');
-  document.getElementById('btn-connect').disabled = true;
-  hideError();
 
   conn = peer.connect(peerId, { reliable: false, serialization: 'json' });
 
   conn.on('open', () => {
-    localStorage.setItem(PEER_ID_KEY, peerId);
+    if (opts.sendAuth && auth) conn.send({ type: 'auth', token: auth.token });
     setStatus('Connected', 'connected');
-    showTouchpad();
+    showScreen('touchpad');
   });
 
   conn.on('close', () => {
     conn = null;
-    setStatus('Disconnected', '');
-    showConnectPanel();
-    document.getElementById('btn-connect').disabled = false;
+    if (opts.autoRetry) {
+      setStatus('Reconnecting…', 'connecting');
+      retryTimer = setTimeout(() => connectToPeer(peerId, opts), 4000);
+    } else {
+      setStatus('Disconnected', '');
+      showScreen('auth');
+    }
   });
 
-  conn.on('error', (err) => {
+  conn.on('error', err => {
     conn = null;
-    showError('Connection failed: ' + (err.message || err));
-    setStatus('Failed', '');
-    showConnectPanel();
-    document.getElementById('btn-connect').disabled = false;
+    showError('conn-error', 'Connection error: ' + (err.message || err));
   });
 }
 
-function send(event) {
-  if (conn && conn.open) conn.send(event);
+function onPeerError(err, peerId, opts) {
+  if (err.type === 'peer-unavailable' && opts.autoRetry) {
+    $('conn-label').textContent = 'Waiting for browser extension…';
+    $('conn-sub').textContent = 'Make sure the Mouse Remote extension is open and you're signed in.';
+    showScreen('connecting');
+    retryTimer = setTimeout(() => connectToPeer(peerId, opts), 5000);
+    return;
+  }
+  showError('conn-error', err.message || String(err.type));
 }
 
-// ─── Connect panel UI ────────────────────────────────────────────────────────
-
-const peerInput = document.getElementById('peer-input');
-const btnConnect = document.getElementById('btn-connect');
-
-peerInput.value = getInitialPeerId();
-if (peerInput.value.trim()) btnConnect.disabled = false;
-
-peerInput.addEventListener('input', () => {
-  btnConnect.disabled = peerInput.value.trim().length === 0;
-  hideError();
-});
-
-btnConnect.addEventListener('click', () => {
-  const id = peerInput.value.trim();
-  if (!id) return;
-  initPeer();
-  peer.on('open', () => connectToPeer(id));
-});
-
-// If peer ID was in URL, auto-connect immediately
-if (getInitialPeerId()) {
-  initPeer();
-  peer.on('open', () => connectToPeer(getInitialPeerId()));
-}
-
-document.getElementById('btn-disconnect').addEventListener('click', () => {
-  if (conn) conn.close();
-  showConnectPanel();
-  setStatus('Disconnected', '');
-});
-
-function showError(msg) {
-  const el = document.getElementById('error-msg');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-function hideError() {
-  document.getElementById('error-msg').style.display = 'none';
-}
-
-// ─── Touchpad gesture handling ───────────────────────────────────────────────
-
-const touchpad = document.getElementById('touchpad');
-const sensitivityInput = document.getElementById('sensitivity');
-
-let activeTouches = {}; // id → {x, y}
-let touchMoved = false;
-let touchStartTime = 0;
-
-function getSensitivity() {
-  return parseFloat(sensitivityInput.value);
-}
+// ── Touchpad gestures ──────────────────────────────────────────────────────
+const touchpad = $('touchpad');
+let touches = {}, touchMoved = false, touchStartTime = 0;
 
 function addRipple(x, y) {
   const el = document.createElement('div');
   el.className = 'ripple';
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
+  el.style.left = x + 'px'; el.style.top = y + 'px';
   touchpad.appendChild(el);
   setTimeout(() => el.remove(), 600);
 }
 
-touchpad.addEventListener('touchstart', (e) => {
+touchpad.addEventListener('touchstart', e => {
   e.preventDefault();
-  touchMoved = false;
-  touchStartTime = Date.now();
+  touchMoved = false; touchStartTime = Date.now();
+  for (const t of e.changedTouches) touches[t.identifier] = { x: t.clientX, y: t.clientY };
+}, { passive: false });
 
+touchpad.addEventListener('touchmove', e => {
+  e.preventDefault(); touchMoved = true;
+  const s = parseFloat($('speed').value);
   for (const t of e.changedTouches) {
-    activeTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+    const p = touches[t.identifier]; if (!p) continue;
+    const dx = (t.clientX - p.x) * s, dy = (t.clientY - p.y) * s;
+    send(e.touches.length === 1 && !isScrollMode ? { type: 'move', dx, dy } : { type: 'scroll', dx: dx * 2, dy: dy * 2 });
+    touches[t.identifier] = { x: t.clientX, y: t.clientY };
   }
 }, { passive: false });
 
-touchpad.addEventListener('touchmove', (e) => {
-  e.preventDefault();
-  touchMoved = true;
-
-  const touchCount = e.touches.length;
-  const s = getSensitivity();
-
-  for (const t of e.changedTouches) {
-    const prev = activeTouches[t.identifier];
-    if (!prev) continue;
-
-    const dx = (t.clientX - prev.x) * s;
-    const dy = (t.clientY - prev.y) * s;
-
-    if (touchCount === 1 && !isScrollMode) {
-      send({ type: 'move', dx, dy });
-    } else {
-      // Two-finger drag or scroll mode → scroll
-      send({ type: 'scroll', dx: dx * 2, dy: dy * 2 });
-    }
-
-    activeTouches[t.identifier] = { x: t.clientX, y: t.clientY };
-  }
-}, { passive: false });
-
-touchpad.addEventListener('touchend', (e) => {
+touchpad.addEventListener('touchend', e => {
   e.preventDefault();
   const elapsed = Date.now() - touchStartTime;
-  const fingersBefore = Object.keys(activeTouches).length;
-
+  const n = Object.keys(touches).length;
   for (const t of e.changedTouches) {
-    // Ripple at touch position
-    const rect = touchpad.getBoundingClientRect();
-    addRipple(t.clientX - rect.left, t.clientY - rect.top);
-    delete activeTouches[t.identifier];
+    const r = touchpad.getBoundingClientRect();
+    addRipple(t.clientX - r.left, t.clientY - r.top);
+    delete touches[t.identifier];
   }
-
-  // Tap = quick touch with no movement
   if (!touchMoved && elapsed < 220 && e.touches.length === 0) {
-    if (fingersBefore === 1) {
-      send({ type: 'click' });
-    } else if (fingersBefore === 2) {
-      send({ type: 'rightclick' });
-    }
+    if (n === 1) send({ type: 'click' });
+    else if (n === 2) send({ type: 'rightclick' });
   }
 }, { passive: false });
 
-touchpad.addEventListener('touchcancel', (e) => {
-  for (const t of e.changedTouches) delete activeTouches[t.identifier];
+touchpad.addEventListener('touchcancel', e => {
+  for (const t of e.changedTouches) delete touches[t.identifier];
 }, { passive: false });
 
-// ─── Action bar buttons ──────────────────────────────────────────────────────
-
-document.getElementById('btn-lclick').addEventListener('touchend', (e) => {
-  e.preventDefault();
-  send({ type: 'click' });
-  flashButton(e.currentTarget);
+// Action bar
+function flash(btn) { btn.classList.add('active'); setTimeout(() => btn.classList.remove('active'), 200); }
+$('btn-lclick').addEventListener('touchend', e => { e.preventDefault(); send({ type: 'click' }); flash(e.currentTarget); });
+$('btn-rclick').addEventListener('touchend', e => { e.preventDefault(); send({ type: 'rightclick' }); flash(e.currentTarget); });
+$('btn-scroll').addEventListener('touchend', e => {
+  e.preventDefault(); isScrollMode = !isScrollMode;
+  $('btn-scroll').classList.toggle('active', isScrollMode);
+  $('scroll-hint').classList.toggle('visible', isScrollMode);
 });
 
-document.getElementById('btn-rclick').addEventListener('touchend', (e) => {
-  e.preventDefault();
-  send({ type: 'rightclick' });
-  flashButton(e.currentTarget);
+// ── Auth UI ────────────────────────────────────────────────────────────────
+$('btn-github').addEventListener('click', () => {
+  if (CLIENT_ID === 'YOUR_GITHUB_OAUTH_CLIENT_ID') {
+    showError('auth-error', 'Auth not configured — see phone/auth.js');
+    return;
+  }
+  startLogin();
 });
 
-document.getElementById('btn-scroll').addEventListener('touchend', (e) => {
-  e.preventDefault();
-  isScrollMode = !isScrollMode;
-  e.currentTarget.classList.toggle('active', isScrollMode);
-  document.getElementById('scroll-hint').classList.toggle('visible', isScrollMode);
+$('btn-signout').addEventListener('click', () => {
+  logout(); auth = null;
+  if (conn) conn.close(); if (peer) { peer.destroy(); peer = null; }
+  showUser(null); showScreen('auth'); setStatus('Mouse Remote', '');
 });
 
-function flashButton(btn) {
-  btn.classList.add('active');
-  setTimeout(() => btn.classList.remove('active'), 200);
+$('peer-input').addEventListener('input', () => {
+  $('btn-manual-go').disabled = $('peer-input').value.trim().length === 0;
+  hideError('auth-error');
+});
+
+$('btn-manual-go').addEventListener('click', () => {
+  const id = $('peer-input').value.trim();
+  if (!id) return;
+  connectToPeer(id, { sendAuth: !!auth, autoRetry: false });
+});
+
+$('btn-abort').addEventListener('click', () => {
+  clearRetry(); if (conn) conn.close();
+  showScreen('auth'); setStatus('Mouse Remote', '');
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  // Handle OAuth callback
+  if (location.search.includes('code=')) {
+    showScreen('connecting');
+    $('conn-label').textContent = 'Signing in…'; $('conn-sub').textContent = '';
+    try {
+      const result = await handleCallback();
+      if (result) { auth = result; showUser(auth.user); }
+    } catch (e) {
+      showScreen('auth'); showError('auth-error', 'Sign-in failed: ' + e.message); return;
+    }
+  } else {
+    auth = getAuth();
+  }
+
+  if (auth) showUser(auth.user);
+
+  // Manual mode: peer ID provided directly in URL (extension popup link for no-auth users)
+  if (manualPeerId) {
+    connectToPeer(manualPeerId, { sendAuth: !!auth, autoRetry: false });
+    return;
+  }
+
+  // Auto mode: derive peer ID from GitHub user ID
+  if (auth) {
+    connectToPeer(derivePeerId(auth.user.id), { sendAuth: true, autoRetry: true });
+    return;
+  }
+
+  // Not authenticated, no peer ID → show gate
+  showScreen('auth');
 }
+
+init();
 </script>
 </body>
 </html>
