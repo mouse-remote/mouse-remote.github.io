@@ -9,7 +9,7 @@
 //      Value: {"clientId":"<id>","clientSecret":"<secret>"}
 //   3. Fill in CLIENT_ID below and push.
 
-export const CLIENT_ID = 'YOUR_GITHUB_OAUTH_CLIENT_ID';  // TODO
+export const CLIENT_ID = 'Ov23liEg8hgt9jv5kFZ4';
 const PROXY_URL        = 'https://cors-proxy.jonasneves.workers.dev';
 const REDIRECT_URI     = 'https://mouse-remote.github.io/phone/';
 const STORAGE_KEY      = 'mr-auth';
