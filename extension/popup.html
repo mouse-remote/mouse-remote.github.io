@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mouse Remote</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 280px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f13;
+      color: #e2e8f0;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #1e1e2e;
+    }
+
+    header svg { flex-shrink: 0; }
+
+    header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #374151;
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
+    .status-dot.waiting   { background: #f59e0b; box-shadow: 0 0 6px #f59e0b60; animation: pulse 1.5s infinite; }
+
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+
+    .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .peer-id {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      background: #1a1a2e;
+      border: 1px solid #2d2d3e;
+      border-radius: 6px;
+      padding: 8px 10px;
+      word-break: break-all;
+      color: #a78bfa;
+      min-height: 32px;
+    }
+
+    .peer-id.loading { color: #4b5563; font-style: italic; font-size: 11px; }
+
+    .url-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .url-box {
+      flex: 1;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      background: #1a1a2e;
+      border: 1px solid #2d2d3e;
+      border-radius: 6px;
+      padding: 7px 8px;
+      color: #60a5fa;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: default;
+      user-select: all;
+    }
+    .url-box.loading { color: #4b5563; }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 11px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    button:active { transform: scale(0.96); }
+
+    .btn-copy {
+      background: #2d2d3e;
+      color: #e2e8f0;
+      white-space: nowrap;
+    }
+    .btn-copy:hover { background: #383852; }
+    .btn-copy.copied { background: #166534; color: #bbf7d0; }
+
+    .btn-open {
+      width: 100%;
+      background: #4f46e5;
+      color: #fff;
+      padding: 9px;
+    }
+    .btn-open:hover { background: #6366f1; }
+    .btn-open:disabled { background: #2d2d3e; color: #4b5563; cursor: default; }
+
+    .status-text {
+      font-size: 11px;
+      color: #6b7280;
+      text-align: center;
+    }
+    .status-text.connected { color: #22c55e; }
+
+    footer {
+      padding: 10px 16px;
+      border-top: 1px solid #1e1e2e;
+      font-size: 10px;
+      color: #374151;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="5" y="2" width="14" height="20" rx="2"/>
+      <line x1="12" y1="18" x2="12" y2="18.01"/>
+    </svg>
+    <h1>Mouse Remote</h1>
+    <div class="status-dot" id="dot"></div>
+  </header>
+
+  <div class="body">
+    <div>
+      <div class="label">Peer ID</div>
+      <div class="peer-id loading" id="peer-id">initializing…</div>
+    </div>
+
+    <div>
+      <div class="label">Phone link</div>
+      <div class="url-row">
+        <div class="url-box loading" id="url-box">waiting for peer…</div>
+        <button class="btn-copy" id="btn-copy">Copy</button>
+      </div>
+    </div>
+
+    <button class="btn-open" id="btn-open" disabled>Open on Phone</button>
+
+    <div class="status-text" id="status-text">Waiting for phone to connect…</div>
+  </div>
+
+  <footer>Tip: scan or paste the link on your phone</footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

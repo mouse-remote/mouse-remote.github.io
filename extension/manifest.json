@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Mouse Remote",
+  "version": "1.0.0",
+  "description": "Control your browser with your phone via WebRTC P2P",
+  "permissions": ["debugger", "tabs", "offscreen"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

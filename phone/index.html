@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Mouse Remote</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --border: #1e1e2e;
+      --accent: #7c3aed;
+      --accent-dim: #4c1d95;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #6b7280;
+      --pad-bg: #0d0d14;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* ─── Layout ─────────────────────────────────────────────── */
+
+    #app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Top bar ─────────────────────────────────────────────── */
+
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #374151;
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    #status-dot.connected  { background: var(--green); box-shadow: 0 0 8px #22c55e60; }
+    #status-dot.connecting { background: var(--amber); animation: pulse 1.2s infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    #status-label {
+      font-size: 13px;
+      color: var(--muted);
+      flex: 1;
+    }
+    #status-label.connected { color: var(--green); }
+
+    #sensitivity-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #sensitivity-wrap label { font-size: 11px; color: var(--muted); }
+    #sensitivity {
+      -webkit-appearance: none;
+      width: 70px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+    #sensitivity::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ─── Connect panel (shown when disconnected) ─────────────── */
+
+    #connect-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    #connect-panel h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    #connect-panel p {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    #peer-input {
+      width: 100%;
+      max-width: 320px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      padding: 12px 14px;
+      outline: none;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+    #peer-input:focus { border-color: var(--accent); }
+    #peer-input::placeholder { color: var(--muted); letter-spacing: 0; font-style: italic; font-family: inherit; }
+
+    #btn-connect {
+      width: 100%;
+      max-width: 320px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #btn-connect:hover { background: #6d28d9; }
+    #btn-connect:disabled { background: #2d2d3e; color: var(--muted); cursor: default; }
+
+    #error-msg {
+      font-size: 12px;
+      color: #f87171;
+      display: none;
+    }
+
+    /* ─── Touchpad (shown when connected) ─────────────────────── */
+
+    #touchpad-view {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+    }
+    #touchpad-view.visible { display: flex; }
+
+    #touchpad {
+      flex: 1;
+      background: var(--pad-bg);
+      position: relative;
+      cursor: none;
+      touch-action: none;
+      user-select: none;
+    }
+
+    /* Visual ripple on touch */
+    .ripple {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(124, 58, 237, 0.25);
+      transform: translate(-50%, -50%) scale(0);
+      pointer-events: none;
+      animation: ripple-anim 0.5s ease-out forwards;
+    }
+    @keyframes ripple-anim {
+      to { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+    }
+
+    /* Scroll mode overlay */
+    #scroll-hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.55);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--amber);
+      letter-spacing: 0.05em;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #scroll-hint.visible { opacity: 1; }
+
+    /* Pad label */
+    #pad-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.06);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* ─── Action bar ───────────────────────────────────────────── */
+
+    #actionbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .action-btn {
+      background: var(--surface);
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 16px 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      border-right: 1px solid var(--border);
+      transition: background 0.1s, color 0.1s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .action-btn:last-child { border-right: none; }
+    .action-btn:active { background: #1e1e30; }
+    .action-btn.active { background: var(--accent-dim); color: #c4b5fd; }
+
+    .action-btn svg { opacity: 0.7; }
+    .action-btn.active svg { opacity: 1; }
+
+    /* Disconnect button */
+    #btn-disconnect {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    #btn-disconnect:hover { color: #f87171; }
+    #btn-disconnect.visible { display: block; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div id="status-dot"></div>
+    <span id="status-label">Not connected</span>
+    <button id="btn-disconnect">Disconnect</button>
+    <div id="sensitivity-wrap">
+      <label for="sensitivity">Speed</label>
+      <input type="range" id="sensitivity" min="0.5" max="4" step="0.1" value="1.5">
+    </div>
+  </div>
+
+  <!-- Connect panel -->
+  <div id="connect-panel">
+    <h2>Mouse Remote</h2>
+    <p>Enter the Peer ID shown in the Chrome extension popup, or open this page via the link in the popup.</p>
+    <input id="peer-input" type="text" placeholder="Paste Peer ID here" autocomplete="off" autocorrect="off" spellcheck="false">
+    <span id="error-msg"></span>
+    <button id="btn-connect" disabled>Connect</button>
+  </div>
+
+  <!-- Touchpad -->
+  <div id="touchpad-view">
+    <div id="touchpad">
+      <div id="pad-label">Trackpad</div>
+      <div id="scroll-hint">↕ Scroll mode</div>
+    </div>
+    <div id="actionbar">
+      <button class="action-btn" id="btn-lclick" title="Left Click">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 3h6v8H5z"/><path d="M13 3h6v8h-6z"/><rect x="3" y="11" width="18" height="10" rx="2"/>
+        </svg>
+        Left Click
+      </button>
+      <button class="action-btn" id="btn-scroll" title="Toggle Scroll Mode">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v20M5 9l7-7 7 7M5 15l7 7 7-7"/>
+        </svg>
+        Scroll
+      </button>
+      <button class="action-btn" id="btn-rclick" title="Right Click">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M13 3h6v8h-6z"/><path d="M5 3h6v8H5z"/><rect x="3" y="11" width="18" height="10" rx="2"/>
+          <line x1="12" y1="11" x2="12" y2="21"/>
+        </svg>
+        Right Click
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+// ─── PeerJS connection ───────────────────────────────────────────────────────
+
+let peer = null;
+let conn = null;
+let isScrollMode = false;
+
+const PEER_ID_KEY = 'mouseremote_last_peer';
+
+// Read peer ID from URL (?peer=…) or saved value
+function getInitialPeerId() {
+  const params = new URLSearchParams(location.search);
+  return params.get('peer') || localStorage.getItem(PEER_ID_KEY) || '';
+}
+
+function setStatus(label, dotClass) {
+  document.getElementById('status-label').textContent = label;
+  document.getElementById('status-label').className = dotClass === 'connected' ? 'connected' : '';
+  document.getElementById('status-dot').className = dotClass;
+}
+
+function showConnectPanel() {
+  document.getElementById('connect-panel').style.display = '';
+  document.getElementById('touchpad-view').classList.remove('visible');
+  document.getElementById('btn-disconnect').classList.remove('visible');
+}
+
+function showTouchpad() {
+  document.getElementById('connect-panel').style.display = 'none';
+  document.getElementById('touchpad-view').classList.add('visible');
+  document.getElementById('btn-disconnect').classList.add('visible');
+}
+
+function initPeer() {
+  if (peer && !peer.destroyed) peer.destroy();
+
+  peer = new Peer({ debug: 0 });
+
+  peer.on('open', () => {
+    const targetId = document.getElementById('peer-input').value.trim();
+    if (targetId) connectToPeer(targetId);
+  });
+
+  peer.on('error', (err) => {
+    showError(err.message || String(err));
+    setStatus('Connection error', '');
+    document.getElementById('btn-connect').disabled = false;
+  });
+}
+
+function connectToPeer(peerId) {
+  if (!peer || peer.destroyed) {
+    initPeer();
+    // will auto-connect once peer opens
+    return;
+  }
+
+  setStatus('Connecting…', 'connecting');
+  document.getElementById('btn-connect').disabled = true;
+  hideError();
+
+  conn = peer.connect(peerId, { reliable: false, serialization: 'json' });
+
+  conn.on('open', () => {
+    localStorage.setItem(PEER_ID_KEY, peerId);
+    setStatus('Connected', 'connected');
+    showTouchpad();
+  });
+
+  conn.on('close', () => {
+    conn = null;
+    setStatus('Disconnected', '');
+    showConnectPanel();
+    document.getElementById('btn-connect').disabled = false;
+  });
+
+  conn.on('error', (err) => {
+    conn = null;
+    showError('Connection failed: ' + (err.message || err));
+    setStatus('Failed', '');
+    showConnectPanel();
+    document.getElementById('btn-connect').disabled = false;
+  });
+}
+
+function send(event) {
+  if (conn && conn.open) conn.send(event);
+}
+
+// ─── Connect panel UI ────────────────────────────────────────────────────────
+
+const peerInput = document.getElementById('peer-input');
+const btnConnect = document.getElementById('btn-connect');
+
+peerInput.value = getInitialPeerId();
+if (peerInput.value.trim()) btnConnect.disabled = false;
+
+peerInput.addEventListener('input', () => {
+  btnConnect.disabled = peerInput.value.trim().length === 0;
+  hideError();
+});
+
+btnConnect.addEventListener('click', () => {
+  const id = peerInput.value.trim();
+  if (!id) return;
+  initPeer();
+  peer.on('open', () => connectToPeer(id));
+});
+
+// If peer ID was in URL, auto-connect immediately
+if (getInitialPeerId()) {
+  initPeer();
+  peer.on('open', () => connectToPeer(getInitialPeerId()));
+}
+
+document.getElementById('btn-disconnect').addEventListener('click', () => {
+  if (conn) conn.close();
+  showConnectPanel();
+  setStatus('Disconnected', '');
+});
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('error-msg').style.display = 'none';
+}
+
+// ─── Touchpad gesture handling ───────────────────────────────────────────────
+
+const touchpad = document.getElementById('touchpad');
+const sensitivityInput = document.getElementById('sensitivity');
+
+let activeTouches = {}; // id → {x, y}
+let touchMoved = false;
+let touchStartTime = 0;
+
+function getSensitivity() {
+  return parseFloat(sensitivityInput.value);
+}
+
+function addRipple(x, y) {
+  const el = document.createElement('div');
+  el.className = 'ripple';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  touchpad.appendChild(el);
+  setTimeout(() => el.remove(), 600);
+}
+
+touchpad.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  touchMoved = false;
+  touchStartTime = Date.now();
+
+  for (const t of e.changedTouches) {
+    activeTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+  }
+}, { passive: false });
+
+touchpad.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  touchMoved = true;
+
+  const touchCount = e.touches.length;
+  const s = getSensitivity();
+
+  for (const t of e.changedTouches) {
+    const prev = activeTouches[t.identifier];
+    if (!prev) continue;
+
+    const dx = (t.clientX - prev.x) * s;
+    const dy = (t.clientY - prev.y) * s;
+
+    if (touchCount === 1 && !isScrollMode) {
+      send({ type: 'move', dx, dy });
+    } else {
+      // Two-finger drag or scroll mode → scroll
+      send({ type: 'scroll', dx: dx * 2, dy: dy * 2 });
+    }
+
+    activeTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+  }
+}, { passive: false });
+
+touchpad.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  const elapsed = Date.now() - touchStartTime;
+  const fingersBefore = Object.keys(activeTouches).length;
+
+  for (const t of e.changedTouches) {
+    // Ripple at touch position
+    const rect = touchpad.getBoundingClientRect();
+    addRipple(t.clientX - rect.left, t.clientY - rect.top);
+    delete activeTouches[t.identifier];
+  }
+
+  // Tap = quick touch with no movement
+  if (!touchMoved && elapsed < 220 && e.touches.length === 0) {
+    if (fingersBefore === 1) {
+      send({ type: 'click' });
+    } else if (fingersBefore === 2) {
+      send({ type: 'rightclick' });
+    }
+  }
+}, { passive: false });
+
+touchpad.addEventListener('touchcancel', (e) => {
+  for (const t of e.changedTouches) delete activeTouches[t.identifier];
+}, { passive: false });
+
+// ─── Action bar buttons ──────────────────────────────────────────────────────
+
+document.getElementById('btn-lclick').addEventListener('touchend', (e) => {
+  e.preventDefault();
+  send({ type: 'click' });
+  flashButton(e.currentTarget);
+});
+
+document.getElementById('btn-rclick').addEventListener('touchend', (e) => {
+  e.preventDefault();
+  send({ type: 'rightclick' });
+  flashButton(e.currentTarget);
+});
+
+document.getElementById('btn-scroll').addEventListener('touchend', (e) => {
+  e.preventDefault();
+  isScrollMode = !isScrollMode;
+  e.currentTarget.classList.toggle('active', isScrollMode);
+  document.getElementById('scroll-hint').classList.toggle('visible', isScrollMode);
+});
+
+function flashButton(btn) {
+  btn.classList.add('active');
+  setTimeout(() => btn.classList.remove('active'), 200);
+}
+</script>
+</body>
+</html>
