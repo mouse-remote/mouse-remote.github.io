@@ -1,6 +1,7 @@
 const PHONE_BASE_URL = 'https://mouse-remote.github.io/phone/';
 
 const dot          = document.getElementById('dot');
+const modeBadge    = document.getElementById('mode-badge');
 const authAuthed   = document.getElementById('auth-authed');
 const authAnon     = document.getElementById('auth-anon');
 const avatarEl     = document.getElementById('avatar');
@@ -16,7 +17,9 @@ function phoneUrl(peerId) {
   return `${PHONE_BASE_URL}?peer=${encodeURIComponent(peerId)}`;
 }
 
-function applyState({ peerId, connected, user }) {
+function applyState({ peerId, connected, user, nativeMode }) {
+  modeBadge.textContent = nativeMode ? 'System' : 'Browser';
+  modeBadge.className = nativeMode ? 'system' : '';
   // Auth section
   if (user) {
     authAuthed.classList.add('visible');

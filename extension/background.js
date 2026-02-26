@@ -11,6 +11,35 @@ let state = {
   debuggerAttached: false,
 };
 
+// ── Native messaging (system-wide mouse control) ───────────────────────────
+// When the native host is installed and running, all mouse events go through
+// it (pynput → OS cursor). Falls back to chrome.debugger if not available.
+
+let nativePort = null;
+
+function connectNative() {
+  try {
+    nativePort = chrome.runtime.connectNative('io.mouseremote.native');
+
+    nativePort.onMessage.addListener((msg) => {
+      if (msg.error) console.error('[MouseRemote] Native host:', msg.error);
+    });
+
+    nativePort.onDisconnect.addListener(() => {
+      const err = chrome.runtime.lastError;
+      if (err) console.log('[MouseRemote] Native host disconnected:', err.message);
+      nativePort = null;
+      broadcast({ type: 'STATE_UPDATE', ...publicState() });
+    });
+
+    console.log('[MouseRemote] Native host connected — system-wide mode active');
+    broadcast({ type: 'STATE_UPDATE', ...publicState() });
+  } catch (e) {
+    console.log('[MouseRemote] Native host not available, using debugger fallback:', e.message);
+    nativePort = null;
+  }
+}
+
 function derivePeerId(userId) { return 'mr-' + userId; }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -124,6 +153,12 @@ async function sendDebuggerEvent(params) {
 // ── Mouse events ──────────────────────────────────────────────────────────
 
 async function handleMouseEvent(event) {
+  // Prefer native host (system-wide) over debugger (browser-only)
+  if (nativePort) {
+    nativePort.postMessage({ event });
+    return;
+  }
+
   const ok = await ensureDebugger();
   if (!ok) return;
 
@@ -165,8 +200,8 @@ function publicState() {
   return {
     peerId: state.peerId,
     connected: state.connected,
-    // Expose user info to popup but never the raw token
     user: state.auth?.user || null,
+    nativeMode: !!nativePort,
   };
 }
 
@@ -234,6 +269,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function init() {
   await loadAuth();
+  connectNative();
   await initOffscreenPeer();
 }
 

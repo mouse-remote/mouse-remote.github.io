@@ -10,7 +10,9 @@
     header { display: flex; align-items: center; gap: 8px; padding: 14px 16px 12px; border-bottom: 1px solid #1e1e2e; }
     header svg { flex-shrink: 0; }
     header h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #374151; margin-left: auto; flex-shrink: 0; transition: background 0.3s; }
+    #mode-badge { margin-left: auto; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; background: #1e1e2e; color: #6b7280; }
+    #mode-badge.system { background: #1a2e1a; color: #22c55e; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #374151; flex-shrink: 0; transition: background 0.3s; }
     .status-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
     .status-dot.waiting   { background: #f59e0b; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -66,6 +68,7 @@
       <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/>
     </svg>
     <h1>Mouse Remote</h1>
+    <span id="mode-badge">Browser</span>
     <div class="status-dot" id="dot"></div>
   </header>
 
