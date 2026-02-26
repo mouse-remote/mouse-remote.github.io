@@ -249,7 +249,7 @@ function doConnect(peerId, opts) {
 function onPeerError(err, peerId, opts) {
   if (err.type === 'peer-unavailable' && opts.autoRetry) {
     $('conn-label').textContent = 'Waiting for browser extension…';
-    $('conn-sub').textContent = 'Make sure the Mouse Remote extension is open and you're signed in.';
+    $('conn-sub').textContent = 'Make sure the Mouse Remote extension is open and you are signed in.';
     showScreen('connecting');
     retryTimer = setTimeout(() => connectToPeer(peerId, opts), 5000);
     return;
