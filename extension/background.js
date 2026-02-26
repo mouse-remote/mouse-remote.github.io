@@ -73,6 +73,12 @@ function isAttachable(tab) {
          !tab.url.startsWith('about:');
 }
 
+async function injectCursor(tabId) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['cursor.js'] });
+  } catch (_) {} // silently skip restricted pages
+}
+
 async function ensureDebugger() {
   const tab = await getActiveTab();
   if (!tab || !isAttachable(tab)) return false;
@@ -87,12 +93,20 @@ async function ensureDebugger() {
     await chrome.debugger.attach({ tabId: tab.id }, '1.3');
     state.tabId = tab.id;
     state.debuggerAttached = true;
+    await injectCursor(tab.id);
     return true;
   } catch (e) {
     console.error('[MouseRemote] Debugger attach failed:', e.message);
     return false;
   }
 }
+
+// Re-inject cursor when user navigates within the controlled tab
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (tabId === state.tabId && state.connected && changeInfo.status === 'complete') {
+    injectCursor(tabId);
+  }
+});
 
 chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId === state.tabId) { state.debuggerAttached = false; state.tabId = null; }
@@ -121,6 +135,7 @@ async function handleMouseEvent(event) {
       state.cursorX = Math.max(0, Math.min(w - 1, state.cursorX + event.dx));
       state.cursorY = Math.max(0, Math.min(h - 1, state.cursorY + event.dy));
       await sendDebuggerEvent({ type: 'mouseMoved', x: state.cursorX, y: state.cursorY, button: 'none', buttons: 0, modifiers: 0, pointerType: 'mouse' });
+      chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_MOVE', x: state.cursorX, y: state.cursorY }).catch(() => {});
       break;
     case 'click': {
       const { cursorX: x, cursorY: y } = state;
@@ -204,6 +219,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // From offscreen: phone disconnected
     case 'PEER_DISCONNECTED':
       state.connected = false;
+      if (state.tabId) chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_REMOVE' }).catch(() => {});
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
