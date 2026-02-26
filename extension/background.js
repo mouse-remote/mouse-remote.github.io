@@ -150,7 +150,7 @@ async function handleMouseEvent(event) {
       break;
     }
     case 'scroll':
-      await sendDebuggerEvent({ type: 'mouseWheel', x: state.cursorX, y: state.cursorY, deltaX: event.dx || 0, deltaY: event.dy || 0, modifiers: 0, pointerType: 'mouse' });
+      await sendDebuggerEvent({ type: 'mouseWheel', x: state.cursorX, y: state.cursorY, deltaX: -(event.dx || 0), deltaY: -(event.dy || 0), modifiers: 0, pointerType: 'mouse' });
       break;
   }
 }
