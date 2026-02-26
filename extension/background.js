@@ -33,9 +33,17 @@ async function getActiveTab() {
   return tab || null;
 }
 
+function isAttachable(tab) {
+  if (!tab?.url) return false;
+  return !tab.url.startsWith('chrome://') &&
+         !tab.url.startsWith('chrome-extension://') &&
+         !tab.url.startsWith('devtools://') &&
+         !tab.url.startsWith('about:');
+}
+
 async function ensureDebugger() {
   const tab = await getActiveTab();
-  if (!tab) return false;
+  if (!tab || !isAttachable(tab)) return false;
 
   if (state.debuggerAttached && state.tabId === tab.id) return true;
 
