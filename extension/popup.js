@@ -1,5 +1,5 @@
 // ⚠️ Update this to match your GitHub Pages URL after creating the repo
-const PHONE_BASE_URL = 'https://jonasneves.github.io/mouse-remote/phone/';
+const PHONE_BASE_URL = 'https://mouse-remote.github.io/phone/';
 
 const dot       = document.getElementById('dot');
 const peerIdEl  = document.getElementById('peer-id');
