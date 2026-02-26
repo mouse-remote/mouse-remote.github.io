@@ -1,13 +1,47 @@
-// Offscreen document: persistent WebRTC peer via PeerJS.
+// Offscreen document: persistent WebRTC peer via PeerJS + local WS server.
 // - On startup: sends OFFSCREEN_READY to background, gets back peer config.
 // - On auth change: receives SET_PEER from background, reinits the peer.
 // - After phone connects: verifies its GitHub token before accepting mouse events.
+// - When local WS server is running: routes mouse events directly (system-wide).
+// - Otherwise: relays MOUSE_EVENT to background for chrome.debugger fallback.
 
 let peer = null;
 let conn = null;
 let currentPeerId = null;
 let expectedUserId = null;
 let phoneVerified = false;
+
+// ── Local WebSocket (system-wide mouse control) ───────────────────────────
+
+const WS_URL = 'ws://localhost:9999';
+let nativeWs = null;
+let wsRetryTimer = null;
+
+function connectNativeWs() {
+  if (nativeWs && (nativeWs.readyState === WebSocket.OPEN || nativeWs.readyState === WebSocket.CONNECTING)) return;
+
+  nativeWs = new WebSocket(WS_URL);
+
+  nativeWs.onopen = () => {
+    console.log('[Offscreen] Native WS connected');
+    clearTimeout(wsRetryTimer);
+    send({ type: 'NATIVE_STATUS', connected: true });
+  };
+
+  nativeWs.onclose = () => {
+    console.log('[Offscreen] Native WS closed — retrying in 3s');
+    send({ type: 'NATIVE_STATUS', connected: false });
+    nativeWs = null;
+    wsRetryTimer = setTimeout(connectNativeWs, 3000);
+  };
+
+  nativeWs.onerror = () => {
+    // onclose fires right after — let it handle retry
+    nativeWs = null;
+  };
+}
+
+connectNativeWs();
 
 function send(message) {
   chrome.runtime.sendMessage(message).catch(() => {});
@@ -90,7 +124,11 @@ function setupPeer(peerId, userId) {
         }
         return; // ignore everything until verified
       }
-      send({ type: 'MOUSE_EVENT', event: data });
+      if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
+        nativeWs.send(JSON.stringify(data));
+      } else {
+        send({ type: 'MOUSE_EVENT', event: data });
+      }
     });
 
     conn.on('close', () => {
