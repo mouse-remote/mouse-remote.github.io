@@ -1,61 +1,27 @@
 #!/usr/bin/env bash
-# Mouse Remote — native messaging host installer (macOS)
+# Mouse Remote — install dependencies
 set -e
 
-HOST_NAME="io.mouseremote.native"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MANIFEST_DIR="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+echo ""
+echo "Mouse Remote — system-wide mouse control setup"
+echo "───────────────────────────────────────────────"
+
+# Install Python deps
+echo ""
+echo "Installing Python dependencies..."
+pip3 install pynput websockets
 
 echo ""
-echo "Mouse Remote — native host installer"
-echo "────────────────────────────────────"
+echo "✓ Done!"
 echo ""
-echo "1. Open chrome://extensions in Chrome"
-echo "2. Find 'Mouse Remote' and copy its ID (e.g. abcdefghijklmnop...)"
+echo "To enable system-wide control:"
 echo ""
-printf "Paste extension ID: "
-read -r EXT_ID
-
-if [ -z "$EXT_ID" ]; then
-  echo "No ID entered, aborting."
-  exit 1
-fi
-
-# Check for pynput
-if ! python3 -c "import pynput" 2>/dev/null; then
-  echo ""
-  echo "Installing pynput..."
-  pip3 install pynput
-fi
-
-# Detect python3 path and write a wrapper so Chrome can find it
-PYTHON3="$(which python3)"
-WRAPPER="$SCRIPT_DIR/run.sh"
-
-cat > "$WRAPPER" << SCRIPT
-#!/usr/bin/env bash
-exec "$PYTHON3" "\$(dirname "\$0")/mouse_remote.py"
-SCRIPT
-chmod +x "$WRAPPER"
-chmod +x "$SCRIPT_DIR/mouse_remote.py"
-
-# Write the native messaging manifest
-mkdir -p "$MANIFEST_DIR"
-cat > "$MANIFEST_DIR/$HOST_NAME.json" << JSON
-{
-  "name": "$HOST_NAME",
-  "description": "Mouse Remote native host",
-  "path": "$WRAPPER",
-  "type": "stdio",
-  "allowed_origins": ["chrome-extension://$EXT_ID/"]
-}
-JSON
-
+echo "  1. Add Terminal.app to Accessibility:"
+echo "     System Settings → Privacy & Security → Accessibility"
+echo "     Click + → /Applications/Utilities/Terminal.app"
 echo ""
-echo "✓ Installed!"
+echo "  2. Start the server (keep the window open):"
+echo "     python3 server.py"
+echo "     — or double-click 'Mouse Remote.command'"
 echo ""
-echo "⚠️  macOS Accessibility permission required:"
-echo "   System Settings → Privacy & Security → Accessibility"
-echo "   Add Python: $PYTHON3"
-echo ""
-echo "Then reload the Mouse Remote extension — the popup will show 'System' mode."
+echo "The extension popup badge will switch to 'System' when connected."

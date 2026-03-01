@@ -1,44 +1,16 @@
 // Background service worker
-// Manages: auth state, offscreen document (WebRTC), debugger, mouse dispatch
+// Manages: auth state, offscreen document (WebRTC + WS), debugger fallback
 
 let state = {
-  auth: null,          // { token, user } — loaded from chrome.storage.local
-  peerId: null,        // current PeerJS peer ID
+  auth: null,          // { token, user } — persisted in chrome.storage.local
+  peerId: null,
   connected: false,
+  nativeMode: false,   // true when offscreen has an active ws://localhost:9999
   cursorX: 640,
   cursorY: 400,
   tabId: null,
   debuggerAttached: false,
 };
-
-// ── Native messaging (system-wide mouse control) ───────────────────────────
-// When the native host is installed and running, all mouse events go through
-// it (pynput → OS cursor). Falls back to chrome.debugger if not available.
-
-let nativePort = null;
-
-function connectNative() {
-  try {
-    nativePort = chrome.runtime.connectNative('io.mouseremote.native');
-
-    nativePort.onMessage.addListener((msg) => {
-      if (msg.error) console.error('[MouseRemote] Native host:', msg.error);
-    });
-
-    nativePort.onDisconnect.addListener(() => {
-      const err = chrome.runtime.lastError;
-      if (err) console.log('[MouseRemote] Native host disconnected:', err.message);
-      nativePort = null;
-      broadcast({ type: 'STATE_UPDATE', ...publicState() });
-    });
-
-    console.log('[MouseRemote] Native host connected — system-wide mode active');
-    broadcast({ type: 'STATE_UPDATE', ...publicState() });
-  } catch (e) {
-    console.log('[MouseRemote] Native host not available, using debugger fallback:', e.message);
-    nativePort = null;
-  }
-}
 
 function derivePeerId(userId) { return 'mr-' + userId; }
 
@@ -60,9 +32,9 @@ async function clearAuth() {
 }
 
 // ── Offscreen document ────────────────────────────────────────────────────
-// The offscreen doc hosts the PeerJS WebRTC peer so it survives popup close/open.
+// Hosts PeerJS (WebRTC) and the WebSocket to the local Python server.
 // On startup it sends OFFSCREEN_READY → background responds with peer config.
-// On auth change → background broadcasts SET_PEER to trigger reinit.
+// On auth change → background sends SET_PEER to trigger reinit.
 
 async function initOffscreenPeer() {
   const existing = await chrome.runtime.getContexts({
@@ -71,23 +43,21 @@ async function initOffscreenPeer() {
   });
 
   if (existing.length > 0) {
-    // Already running — send auth update directly
     chrome.runtime.sendMessage({
       type: 'SET_PEER',
       peerId: state.auth ? derivePeerId(state.auth.user.id) : null,
       expectedUserId: state.auth ? state.auth.user.id : null,
     }).catch(() => {});
   } else {
-    // Create fresh — it will send OFFSCREEN_READY when its scripts have loaded
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       reasons: [chrome.offscreen.Reason.WEB_RTC],
-      justification: 'P2P WebRTC peer connection for phone mouse remote',
+      justification: 'P2P WebRTC peer + local server WebSocket for mouse remote',
     });
   }
 }
 
-// ── Debugger ──────────────────────────────────────────────────────────────
+// ── Debugger (browser-only fallback) ─────────────────────────────────────
 
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -100,12 +70,6 @@ function isAttachable(tab) {
          !tab.url.startsWith('chrome-extension://') &&
          !tab.url.startsWith('devtools://') &&
          !tab.url.startsWith('about:');
-}
-
-async function injectCursor(tabId) {
-  try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['cursor.js'] });
-  } catch (_) {} // silently skip restricted pages
 }
 
 async function ensureDebugger() {
@@ -122,20 +86,12 @@ async function ensureDebugger() {
     await chrome.debugger.attach({ tabId: tab.id }, '1.3');
     state.tabId = tab.id;
     state.debuggerAttached = true;
-    await injectCursor(tab.id);
     return true;
   } catch (e) {
     console.error('[MouseRemote] Debugger attach failed:', e.message);
     return false;
   }
 }
-
-// Re-inject cursor when user navigates within the controlled tab
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (tabId === state.tabId && state.connected && changeInfo.status === 'complete') {
-    injectCursor(tabId);
-  }
-});
 
 chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId === state.tabId) { state.debuggerAttached = false; state.tabId = null; }
@@ -151,14 +107,10 @@ async function sendDebuggerEvent(params) {
 }
 
 // ── Mouse events ──────────────────────────────────────────────────────────
+// Native (system-wide): offscreen forwards directly to local WS server.
+// Browser fallback:     background dispatches via chrome.debugger.
 
 async function handleMouseEvent(event) {
-  // Prefer native host (system-wide) over debugger (browser-only)
-  if (nativePort) {
-    nativePort.postMessage({ event });
-    return;
-  }
-
   const ok = await ensureDebugger();
   if (!ok) return;
 
@@ -170,7 +122,6 @@ async function handleMouseEvent(event) {
       state.cursorX = Math.max(0, Math.min(w - 1, state.cursorX + event.dx));
       state.cursorY = Math.max(0, Math.min(h - 1, state.cursorY + event.dy));
       await sendDebuggerEvent({ type: 'mouseMoved', x: state.cursorX, y: state.cursorY, button: 'none', buttons: 0, modifiers: 0, pointerType: 'mouse' });
-      chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_MOVE', x: state.cursorX, y: state.cursorY }).catch(() => {});
       break;
     case 'click': {
       const { cursorX: x, cursorY: y } = state;
@@ -185,23 +136,21 @@ async function handleMouseEvent(event) {
       break;
     }
     case 'scroll':
-      await sendDebuggerEvent({ type: 'mouseWheel', x: state.cursorX, y: state.cursorY, deltaX: -(event.dx || 0), deltaY: -(event.dy || 0), modifiers: 0, pointerType: 'mouse' });
+      await sendDebuggerEvent({ type: 'mouseWheel', x: state.cursorX, y: state.cursorY, deltaX: event.dx || 0, deltaY: event.dy || 0, modifiers: 0, pointerType: 'mouse' });
       break;
   }
 }
 
-// ── Broadcast helpers ─────────────────────────────────────────────────────
+// ── Broadcast ─────────────────────────────────────────────────────────────
 
-function broadcast(message) {
-  chrome.runtime.sendMessage(message).catch(() => {});
-}
+function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => {}); }
 
 function publicState() {
   return {
     peerId: state.peerId,
     connected: state.connected,
+    nativeMode: state.nativeMode,
     user: state.auth?.user || null,
-    nativeMode: !!nativePort,
   };
 }
 
@@ -210,12 +159,11 @@ function publicState() {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   switch (message.type) {
 
-    // Popup asks for initial state
     case 'GET_STATE':
       sendResponse(publicState());
       return true;
 
-    // Offscreen doc just loaded — tell it which peer to create
+    // Offscreen just loaded — respond with peer config
     case 'OFFSCREEN_READY':
       sendResponse({
         peerId: state.auth ? derivePeerId(state.auth.user.id) : null,
@@ -223,7 +171,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
       return true;
 
-    // Content script picked up auth from the phone page (localStorage)
+    // Offscreen reports local server connect/disconnect
+    case 'NATIVE_STATUS':
+      state.nativeMode = message.connected;
+      broadcast({ type: 'STATE_UPDATE', ...publicState() });
+      break;
+
+    // Content script bridged auth from phone page localStorage
     case 'AUTH_FROM_PAGE':
       saveAuth(message.auth).then(() => {
         initOffscreenPeer();
@@ -231,7 +185,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
       break;
 
-    // Popup sign-out button
     case 'SIGN_OUT':
       clearAuth().then(() => {
         initOffscreenPeer();
@@ -239,26 +192,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
       break;
 
-    // From offscreen: peer server connection opened
     case 'PEER_READY':
       state.peerId = message.peerId;
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
-    // From offscreen: phone connected and verified
     case 'PEER_CONNECTED':
       state.connected = true;
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
-    // From offscreen: phone disconnected
     case 'PEER_DISCONNECTED':
       state.connected = false;
-      if (state.tabId) chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_REMOVE' }).catch(() => {});
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
-    // From offscreen: incoming mouse event
+    // Only reaches here when native server is NOT available (offscreen routes
+    // directly to WS when it is, never sending MOUSE_EVENT to background)
     case 'MOUSE_EVENT':
       handleMouseEvent(message.event);
       break;
@@ -269,7 +219,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function init() {
   await loadAuth();
-  connectNative();
   await initOffscreenPeer();
 }
 
