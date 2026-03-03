@@ -74,7 +74,10 @@ function isAttachable(tab) {
 
 async function ensureDebugger() {
   const tab = await getActiveTab();
-  if (!tab || !isAttachable(tab)) return false;
+  if (!tab || !isAttachable(tab)) {
+    console.warn('[MouseRemote] No attachable tab:', tab?.url);
+    return false;
+  }
   if (state.debuggerAttached && state.tabId === tab.id) return true;
 
   if (state.debuggerAttached && state.tabId) {
@@ -266,6 +269,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Only reaches here when native server is NOT available (offscreen routes
     // directly to WS when it is, never sending MOUSE_EVENT to background)
     case 'MOUSE_EVENT':
+      console.log('[MouseRemote] MOUSE_EVENT:', message.event?.type);
       handleMouseEvent(message.event);
       break;
   }

@@ -121,9 +121,12 @@ function setupPeer(peerId, userId) {
             closeConn();
             send({ type: 'PEER_DISCONNECTED' });
           }
+        } else {
+          console.warn('[Offscreen] Data before auth — type:', data?.type, '(expected "auth")');
         }
         return; // ignore everything until verified
       }
+      console.log('[Offscreen] →', data?.type, data);
       if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
         nativeWs.send(JSON.stringify(data));
       } else {
