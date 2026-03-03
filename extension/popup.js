@@ -72,9 +72,10 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'STATE_UPDATE') applyState(message);
 });
 
-// Sign in: open phone page in new tab — content script will pick up the token
+// Sign in: open a minimal sign-in page — content script bridges the token back.
+// The phone controller is for mobile only, so we don't open it here.
 document.getElementById('btn-signin').addEventListener('click', () => {
-  chrome.tabs.create({ url: PHONE_BASE_URL });
+  chrome.tabs.create({ url: 'https://mouse-remote.github.io/phone/signin.html' });
 });
 
 // Sign out
