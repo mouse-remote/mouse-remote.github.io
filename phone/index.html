@@ -223,13 +223,20 @@ function doConnect(peerId, opts) {
 
   conn = peer.connect(peerId, { reliable: false, serialization: 'json' });
 
+  // If the offer goes to a stale peer that never responds, retry after 12s.
+  const connTimeout = opts.autoRetry ? setTimeout(() => {
+    if (conn && !conn.open) { conn.close(); conn = null; connectToPeer(peerId, opts); }
+  }, 12000) : null;
+
   conn.on('open', () => {
+    clearTimeout(connTimeout);
     if (opts.sendAuth && auth) conn.send({ type: 'auth', token: auth.token });
     setStatus('Connected', 'connected');
     showScreen('touchpad');
   });
 
   conn.on('close', () => {
+    clearTimeout(connTimeout);
     conn = null;
     if (opts.autoRetry) {
       setStatus('Reconnecting…', 'connecting');
@@ -241,6 +248,7 @@ function doConnect(peerId, opts) {
   });
 
   conn.on('error', err => {
+    clearTimeout(connTimeout);
     conn = null;
     showError('conn-error', 'Connection error: ' + (err.message || err));
   });
