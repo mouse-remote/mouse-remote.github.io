@@ -31,12 +31,15 @@ read_msg()  # consume the incoming message from the extension
 here = os.path.dirname(os.path.abspath(__file__))
 server = os.path.join(here, 'server.py')
 
+log_path = os.path.join(os.path.expanduser('~'), 'Library', 'Logs', 'mouse-remote.log')
+
 try:
+    log = open(log_path, 'w')
     subprocess.Popen(
         [sys.executable, server],
         start_new_session=True,  # detach from Chrome's process group
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log,
+        stderr=log,
     )
     send_msg({'ok': True})
 except Exception as e:
