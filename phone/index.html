@@ -155,7 +155,7 @@
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="module">
-import { getAuth, saveAuth, logout, startLogin, handleCallback, derivePeerId, CLIENT_ID } from './auth.js';
+import { getAuth, saveAuth, logout, startLogin, derivePeerId, CLIENT_ID } from './auth.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -348,19 +348,7 @@ $('btn-abort').addEventListener('click', () => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
-  // Handle OAuth callback
-  if (location.search.includes('code=')) {
-    showScreen('connecting');
-    $('conn-label').textContent = 'Signing in…'; $('conn-sub').textContent = '';
-    try {
-      const result = await handleCallback();
-      if (result) { auth = result; showUser(auth.user); }
-    } catch (e) {
-      showScreen('auth'); showError('auth-error', 'Sign-in failed: ' + e.message); return;
-    }
-  } else {
-    auth = getAuth();
-  }
+  auth = getAuth();
 
   if (auth) showUser(auth.user);
 

@@ -152,8 +152,9 @@ function setupPeer(peerId, userId) {
   peer.on('error', (err) => {
     console.error('[Offscreen] Peer error:', err.type, err);
     if (err.type === 'unavailable-id') {
-      // Stable peer ID is already taken (stale session) — retry in 10s
-      setTimeout(() => setupPeer(currentPeerId, expectedUserId), 10000);
+      // Stable ID taken by stale session — fall back to random ID immediately.
+      // Background receives PEER_READY with the new ID and updates the pairing URL.
+      setupPeer(null, expectedUserId);
     } else if (err.type === 'server-error' || err.type === 'network') {
       setTimeout(() => setupPeer(currentPeerId, expectedUserId), 5000);
     }
