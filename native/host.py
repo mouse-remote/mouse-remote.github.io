@@ -39,7 +39,7 @@ import time; time.sleep(0.4)  # allow port to free up
 try:
     log = open(log_path, 'w')
     subprocess.Popen(
-        [sys.executable, server],
+        [sys.executable, '-u', server],  # -u: unbuffered so log flushes immediately
         start_new_session=True,  # detach from Chrome's process group
         stdout=log,
         stderr=log,
