@@ -141,6 +141,27 @@ async function handleMouseEvent(event) {
   }
 }
 
+// ── Native server launcher ────────────────────────────────────────────────
+// Uses native messaging to launch server.py as a detached background process.
+// Falls back silently if the host isn't installed (user hasn't run install.sh).
+
+let lastNativeLaunch = 0;
+
+function launchNativeServer() {
+  const now = Date.now();
+  if (now - lastNativeLaunch < 30_000) return; // 30s cooldown
+  lastNativeLaunch = now;
+
+  const port = chrome.runtime.connectNative('io.github.mouseremote');
+  port.postMessage({ action: 'launch' });
+  port.onMessage.addListener(() => port.disconnect());
+  port.onDisconnect.addListener(() => {
+    if (chrome.runtime.lastError) {
+      console.log('[MouseRemote] Native host not installed — run native/install.sh');
+    }
+  });
+}
+
 // ── Broadcast ─────────────────────────────────────────────────────────────
 
 function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => {}); }
@@ -174,6 +195,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Offscreen reports local server connect/disconnect
     case 'NATIVE_STATUS':
       state.nativeMode = message.connected;
+      if (!message.connected) launchNativeServer();
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
@@ -220,6 +242,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function init() {
   await loadAuth();
   await initOffscreenPeer();
+  launchNativeServer();
 }
 
 init().catch(console.error);
