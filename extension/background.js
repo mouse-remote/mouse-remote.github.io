@@ -106,6 +106,27 @@ async function sendDebuggerEvent(params) {
   }
 }
 
+// ── Cursor overlay (browser mode only) ───────────────────────────────────
+// cursor.js is injected into the active tab to show a visual cursor dot.
+// Cleared on disconnect or when native mode takes over.
+
+const injectedTabs = new Set();
+
+chrome.tabs.onUpdated.addListener((tabId, info) => { if (info.status === 'loading') injectedTabs.delete(tabId); });
+chrome.tabs.onRemoved.addListener((tabId) => injectedTabs.delete(tabId));
+
+async function ensureCursorInjected(tabId) {
+  if (injectedTabs.has(tabId)) return;
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['cursor.js'] });
+    injectedTabs.add(tabId);
+  } catch (_) {}
+}
+
+function removeCursor() {
+  if (state.tabId) chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_REMOVE' }).catch(() => {});
+}
+
 // ── Mouse events ──────────────────────────────────────────────────────────
 // Native (system-wide): offscreen forwards directly to local WS server.
 // Browser fallback:     background dispatches via chrome.debugger.
@@ -121,6 +142,8 @@ async function handleMouseEvent(event) {
     case 'move':
       state.cursorX = Math.max(0, Math.min(w - 1, state.cursorX + event.dx));
       state.cursorY = Math.max(0, Math.min(h - 1, state.cursorY + event.dy));
+      await ensureCursorInjected(state.tabId);
+      chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_MOVE', x: state.cursorX, y: state.cursorY }).catch(() => {});
       await sendDebuggerEvent({ type: 'mouseMoved', x: state.cursorX, y: state.cursorY, button: 'none', buttons: 0, modifiers: 0, pointerType: 'mouse' });
       break;
     case 'click': {
@@ -195,7 +218,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Offscreen reports local server connect/disconnect
     case 'NATIVE_STATUS':
       state.nativeMode = message.connected;
-      if (!message.connected) launchNativeServer();
+      if (message.connected) removeCursor(); // native mode takes over, clear the overlay
+      else launchNativeServer();
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
@@ -226,6 +250,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     case 'PEER_DISCONNECTED':
       state.connected = false;
+      removeCursor();
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
