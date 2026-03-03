@@ -1,12 +1,15 @@
+.DEFAULT_GOAL := help
+
 .PHONY: help install uninstall server
 
 help:
 	@echo ""
-	@echo "  Mouse Remote"
+	@echo "\033[2mSetup\033[0m"
+	@echo "  \033[36minstall\033[0m    Install Python deps and register native messaging host"
+	@echo "  \033[36muninstall\033[0m  Remove the native messaging host manifest"
 	@echo ""
-	@echo "  make install    install Python deps and register native messaging host"
-	@echo "  make uninstall  remove the native messaging host manifest"
-	@echo "  make server     start the local WebSocket server manually"
+	@echo "\033[2mDev\033[0m"
+	@echo "  \033[36mserver\033[0m     Start the local WebSocket server manually"
 	@echo ""
 
 install:
