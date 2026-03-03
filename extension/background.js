@@ -84,13 +84,16 @@ async function ensureDebugger() {
 
   try {
     await chrome.debugger.attach({ tabId: tab.id }, '1.3');
-    state.tabId = tab.id;
-    state.debuggerAttached = true;
-    return true;
   } catch (e) {
-    console.error('[MouseRemote] Debugger attach failed:', e.message);
-    return false;
+    // If another concurrent call already attached, that's fine — continue.
+    if (!e.message?.includes('already attached')) {
+      console.error('[MouseRemote] Debugger attach failed:', e.message);
+      return false;
+    }
   }
+  state.tabId = tab.id;
+  state.debuggerAttached = true;
+  return true;
 }
 
 chrome.debugger.onDetach.addListener((source) => {
@@ -102,7 +105,9 @@ async function sendDebuggerEvent(params) {
     await chrome.debugger.sendCommand({ tabId: state.tabId }, 'Input.dispatchMouseEvent', params);
   } catch (e) {
     console.error('[MouseRemote] dispatchMouseEvent failed:', e.message);
-    state.debuggerAttached = false;
+    // Don't clear state here — if the tab detached, onDetach fires and cleans up.
+    // Clearing state prematurely causes the next ensureDebugger() to fail with
+    // "already attached" since we never actually called detach.
   }
 }
 

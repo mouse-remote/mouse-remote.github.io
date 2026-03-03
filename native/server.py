@@ -47,21 +47,24 @@ async def handle(ws):
     print(f"  ✓ Extension connected from {addr}")
     try:
         async for raw in ws:
-            e = json.loads(raw)
-            t = e.get('type')
-            if t == 'move':
-                mouse.move(e.get('dx', 0), e.get('dy', 0))
-            elif t == 'click':
-                mouse.click(Button.left)
-            elif t == 'rightclick':
-                mouse.click(Button.right)
-            elif t == 'scroll':
-                mouse.scroll(
-                    e.get('dx', 0) / SCROLL_DIV,
-                    -e.get('dy', 0) / SCROLL_DIV,
-                )
+            try:
+                e = json.loads(raw)
+                t = e.get('type')
+                if t == 'move':
+                    mouse.move(e.get('dx', 0), e.get('dy', 0))
+                elif t == 'click':
+                    mouse.click(Button.left)
+                elif t == 'rightclick':
+                    mouse.click(Button.right)
+                elif t == 'scroll':
+                    mouse.scroll(
+                        e.get('dx', 0) / SCROLL_DIV,
+                        -e.get('dy', 0) / SCROLL_DIV,
+                    )
+            except Exception as ex:
+                print(f"  ✗ Event error: {ex}")
     except Exception as ex:
-        print(f"  ✗ Error: {ex}")
+        print(f"  ✗ Connection error: {ex}")
     print(f"  Extension disconnected")
 
 # ── Main ──────────────────────────────────────────────────────────────────
