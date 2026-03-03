@@ -30,8 +30,11 @@ read_msg()  # consume the incoming message from the extension
 
 here = os.path.dirname(os.path.abspath(__file__))
 server = os.path.join(here, 'server.py')
-
 log_path = os.path.join(os.path.expanduser('~'), 'Library', 'Logs', 'mouse-remote.log')
+
+# Kill any stale server.py so the fresh launch always uses the latest code.
+subprocess.run(['pkill', '-f', server], capture_output=True)
+import time; time.sleep(0.4)  # allow port to free up
 
 try:
     log = open(log_path, 'w')

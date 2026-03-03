@@ -72,13 +72,13 @@ async def handle(ws):
 async def main():
     print(f"  python: {sys.executable}")
     try:
+        mouse.move(1, 0)
+        mouse.move(-1, 0)
         pos = mouse.position
-        mouse.position = pos
         print(f"  mouse control: OK (position {pos[0]:.0f}, {pos[1]:.0f})")
     except Exception as e:
         print(f"  mouse control: FAILED — {e}")
-        print(f"  fix: add to Accessibility in System Settings → Privacy & Security")
-        print(f"       System Settings → Privacy & Security → Accessibility → + → {sys.executable}")
+        print(f"  fix: System Settings → Privacy & Security → Accessibility → + → {sys.executable}")
     print(f"\n  Mouse Remote server running on ws://localhost:{PORT}")
     print(f"  Keep this window open. Ctrl+C to stop.\n")
     # origins=None → accept connections from any origin (including chrome-extension://)
