@@ -44,10 +44,7 @@
 
     // startLogin() uses a popup + postMessage flow. auth.js calls saveAuth()
     // which dispatches 'mr-auth-ready', picked up by the extension's content.js.
-    document.addEventListener('mr-auth-ready', () => {
-      document.getElementById('btn').style.display = 'none';
-      document.getElementById('success').classList.add('visible');
-    });
+    // The background will close this tab automatically once auth is received.
   </script>
 </body>
 </html>

@@ -200,7 +200,7 @@ function publicState() {
 
 // ── Message bus ───────────────────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
 
     case 'GET_STATE':
@@ -229,6 +229,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         initOffscreenPeer();
         broadcast({ type: 'STATE_UPDATE', ...publicState() });
       });
+      // Auto-close the dedicated sign-in tab; leave the phone controller open on mobile.
+      if (sender.tab?.url?.includes('/signin.html')) {
+        chrome.tabs.remove(sender.tab.id);
+      }
       break;
 
     case 'SIGN_OUT':
