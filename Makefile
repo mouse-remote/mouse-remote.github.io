@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := server
 
 .PHONY: help install uninstall server
 
