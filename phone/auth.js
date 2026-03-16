@@ -41,6 +41,7 @@ export function startLogin() {
 
   function onMsg(e) {
     if (e.data?.type !== 'gh-auth') return;
+    if (e.origin !== 'https://neevs.io') return;
     window.removeEventListener('message', onMsg);
     if (e.data.auth) saveAuth(e.data.auth.token, e.data.auth.user);
     try { popup.close(); } catch {}
