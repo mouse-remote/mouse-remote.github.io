@@ -1,12 +1,12 @@
 # mouse-remote
 
-Control your browser's mouse with your phone via WebRTC P2P.
+Control your Mac's mouse with your phone via WebRTC P2P.
 
 ```
-Phone (touchpad) ──WebRTC──> Chrome Extension ──chrome.debugger──> Active Tab
+Phone (touchpad) ──WebRTC──> Chrome Extension ──WebSocket──> server.py ──pynput──> OS
 ```
 
-No server required — signaling via PeerJS cloud, then direct P2P.
+No relay server — signaling via PeerJS cloud, then direct P2P.
 
 ## Setup
 
@@ -16,22 +16,23 @@ No server required — signaling via PeerJS cloud, then direct P2P.
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked** → select the `extension/` folder
 
-### 2. Deploy phone page to GitHub Pages
+### 2. Install the native server
 
-1. Push this repo to GitHub
-2. Go to repo **Settings → Pages → Source: `main` branch, `/` (root)**
-3. Update the `PHONE_BASE_URL` constant in `extension/popup.js`:
-   ```js
-   const PHONE_BASE_URL = 'https://YOUR_USERNAME.github.io/mouse-remote/phone/';
-   ```
-4. Reload the extension
+```bash
+cd native
+./install.sh
+```
+
+This installs a macOS LaunchAgent that runs `server.py` on login (auto-restarts if it crashes). Requires Python 3 with `pynput` and `websockets`.
+
+**One-time macOS permission:** System Settings → Privacy & Security → Accessibility → add Terminal.app (or whatever runs `python3`).
 
 ### 3. Connect
 
 1. Click the Mouse Remote extension icon
-2. Copy the phone link shown in the popup (or click "Open on Phone")
-3. Open the link on your phone — it auto-connects
-4. Use your phone as a trackpad!
+2. Sign in with GitHub for auto-connect — or copy the peer ID and paste it into the phone
+3. Open the phone page on your phone and it connects automatically
+4. Use your phone as a trackpad
 
 ## Gestures
 
@@ -42,25 +43,32 @@ No server required — signaling via PeerJS cloud, then direct P2P.
 | 2-finger tap | Right click |
 | 2-finger drag | Scroll |
 | Scroll button (action bar) | Toggle scroll mode |
-| Left Click button | Left click |
-| Right Click button | Right click |
-
-## Notes
-
-- The extension uses `chrome.debugger` to dispatch mouse events — Chrome will show a banner saying "DevTools opened". This is normal for debugger-based extensions.
-- The PeerJS free cloud signaling server (`0.peerjs.com`) is used. For private use, you can self-host: https://github.com/peers/peerjs-server
-- Only controls input within the browser tab, not the OS mouse.
+| Left / Right Click buttons | Explicit clicks |
 
 ## Files
 
 ```
 extension/          Chrome extension (load unpacked)
   manifest.json
-  background.js     Service worker: debugger + event routing
-  offscreen.html/js Persistent WebRTC peer (survives popup close)
-  popup.html/js     Shows Peer ID + phone link
+  background.js     Service worker: auth + offscreen lifecycle
+  offscreen.html/js Persistent WebRTC peer + WS client
+  popup.html/js     Status UI + phone link
+  content.js        Bridges GitHub auth from phone page to extension
   peerjs.min.js     Bundled PeerJS (no CDN in extensions)
 
 phone/
   index.html        Touchpad UI — deploy to GitHub Pages
+  index.js          Touchpad logic + connection handling
+  auth.js           GitHub OAuth + peer ID derivation
+  signin.html       Desktop sign-in page (opened by extension)
+
+native/
+  server.py         WebSocket server → pynput mouse control
+  install.sh        Installs LaunchAgent + Python deps
 ```
+
+## Notes
+
+- Logs at `~/Library/Logs/mouse-remote.log`
+- To uninstall the server: `launchctl unload ~/Library/LaunchAgents/io.github.mouseremote.server.plist`
+- PeerJS free cloud signaling (`0.peerjs.com`) — for private use, self-host: https://github.com/peers/peerjs-server

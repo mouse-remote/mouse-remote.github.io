@@ -2,8 +2,7 @@
 // - On startup: sends OFFSCREEN_READY to background, gets back peer config.
 // - On auth change: receives SET_PEER from background, reinits the peer.
 // - After phone connects: verifies its GitHub token before accepting mouse events.
-// - When local WS server is running: routes mouse events directly (system-wide).
-// - Otherwise: relays MOUSE_EVENT to background for chrome.debugger fallback.
+// - Routes mouse events to local WS server (system-wide control via server.py).
 
 let peer = null;
 let conn = null;
@@ -130,7 +129,7 @@ function setupPeer(peerId, userId) {
       if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
         nativeWs.send(JSON.stringify(data));
       } else {
-        send({ type: 'MOUSE_EVENT', event: data });
+        console.warn('[Offscreen] Native server not connected — event dropped:', data?.type);
       }
     });
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mouse Remote — install dependencies and register native messaging host
+# Mouse Remote — install dependencies and register LaunchAgent
 set -e
 
 echo ""
@@ -12,44 +12,51 @@ echo ""
 echo "Installing Python dependencies..."
 pip3 install pynput websockets
 
-# ── Native messaging host ─────────────────────────────────────────────────
+# ── LaunchAgent (auto-starts server on login) ─────────────────────────────
 
 echo ""
-echo "Registering native messaging host..."
+echo "Installing LaunchAgent..."
 
-HOST_PY="$(cd "$(dirname "$0")" && pwd)/host.py"
-chmod +x "$HOST_PY"
+SERVER_PY="$(cd "$(dirname "$0")" && pwd)/server.py"
+PYTHON3="$(which python3)"
+PLIST_DIR="$HOME/Library/LaunchAgents"
+PLIST_PATH="$PLIST_DIR/io.github.mouseremote.server.plist"
+LOG_PATH="$HOME/Library/Logs/mouse-remote.log"
 
-# Extension ID — passed as $1 or prompted interactively
-EXT_ID="${1:-}"
-if [ -z "$EXT_ID" ]; then
-  echo ""
-  echo "  To find your extension ID:"
-  echo "    1. Open Chrome → chrome://extensions"
-  echo "    2. Enable 'Developer mode' (top right)"
-  echo "    3. Find 'Mouse Remote' and copy the ID below the title"
-  echo ""
-  read -rp "  Extension ID: " EXT_ID
-fi
+mkdir -p "$PLIST_DIR"
 
-MANIFEST_DIR="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"
-mkdir -p "$MANIFEST_DIR"
+cat > "$PLIST_PATH" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>io.github.mouseremote.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$PYTHON3</string>
+    <string>-u</string>
+    <string>$SERVER_PY</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$LOG_PATH</string>
+  <key>StandardErrorPath</key>
+  <string>$LOG_PATH</string>
+</dict>
+</plist>
+PLIST
 
-cat > "$MANIFEST_DIR/io.github.mouseremote.json" <<JSON
-{
-  "name": "io.github.mouseremote",
-  "description": "Mouse Remote server launcher",
-  "path": "$HOST_PY",
-  "type": "stdio",
-  "allowed_origins": ["chrome-extension://$EXT_ID/"]
-}
-JSON
+# Reload to pick up any path changes
+launchctl unload "$PLIST_PATH" 2>/dev/null || true
+launchctl load "$PLIST_PATH"
 
 echo ""
-echo "✓ Done!"
-echo ""
-echo "The extension will now start the server automatically."
-echo "You can still double-click 'Mouse Remote.command' to start it manually."
+echo "✓ Done! Server is running on ws://localhost:9999"
+echo "  Logs: $LOG_PATH"
 echo ""
 echo "macOS Accessibility (one-time, if not already done):"
 echo "  System Settings → Privacy & Security → Accessibility → add Terminal.app"

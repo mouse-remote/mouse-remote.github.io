@@ -1,17 +1,14 @@
 // Background service worker
-// Manages: auth state, offscreen document (WebRTC + WS), debugger fallback
+// Manages: auth state, offscreen document (WebRTC + WS)
 
 let state = {
-  auth: null,          // { token, user } — persisted in chrome.storage.local
+  auth: null,        // { token, user } — persisted in chrome.storage.local
   peerId: null,
   connected: false,
-  nativeMode: false,   // true when offscreen has an active ws://localhost:9999
-  cursorX: 640,
-  cursorY: 400,
-  tabId: null,
-  debuggerAttached: false,
+  nativeMode: false, // true when offscreen has an active ws://localhost:9999
 };
 
+// Must match phone/auth.js:derivePeerId
 function derivePeerId(userId) { return 'mr-' + userId; }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -57,142 +54,6 @@ async function initOffscreenPeer() {
   }
 }
 
-// ── Debugger (browser-only fallback) ─────────────────────────────────────
-
-async function getActiveTab() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  return tab || null;
-}
-
-function isAttachable(tab) {
-  if (!tab?.url) return false;
-  return !tab.url.startsWith('chrome://') &&
-         !tab.url.startsWith('chrome-extension://') &&
-         !tab.url.startsWith('devtools://') &&
-         !tab.url.startsWith('about:');
-}
-
-async function ensureDebugger() {
-  const tab = await getActiveTab();
-  if (!tab || !isAttachable(tab)) {
-    console.warn('[MouseRemote] No attachable tab:', tab?.url);
-    return false;
-  }
-  if (state.debuggerAttached && state.tabId === tab.id) return true;
-
-  if (state.debuggerAttached && state.tabId) {
-    try { await chrome.debugger.detach({ tabId: state.tabId }); } catch (_) {}
-    state.debuggerAttached = false;
-  }
-
-  try {
-    await chrome.debugger.attach({ tabId: tab.id }, '1.3');
-  } catch (e) {
-    // If another concurrent call already attached, that's fine — continue.
-    if (!e.message?.includes('already attached')) {
-      console.error('[MouseRemote] Debugger attach failed:', e.message);
-      return false;
-    }
-  }
-  state.tabId = tab.id;
-  state.debuggerAttached = true;
-  return true;
-}
-
-chrome.debugger.onDetach.addListener((source) => {
-  if (source.tabId === state.tabId) { state.debuggerAttached = false; state.tabId = null; }
-});
-
-async function sendDebuggerEvent(params) {
-  try {
-    await chrome.debugger.sendCommand({ tabId: state.tabId }, 'Input.dispatchMouseEvent', params);
-  } catch (e) {
-    console.error('[MouseRemote] dispatchMouseEvent failed:', e.message);
-    // Don't clear state here — if the tab detached, onDetach fires and cleans up.
-    // Clearing state prematurely causes the next ensureDebugger() to fail with
-    // "already attached" since we never actually called detach.
-  }
-}
-
-// ── Cursor overlay (browser mode only) ───────────────────────────────────
-// cursor.js is injected into the active tab to show a visual cursor dot.
-// Cleared on disconnect or when native mode takes over.
-
-const injectedTabs = new Set();
-
-chrome.tabs.onUpdated.addListener((tabId, info) => { if (info.status === 'loading') injectedTabs.delete(tabId); });
-chrome.tabs.onRemoved.addListener((tabId) => injectedTabs.delete(tabId));
-
-async function ensureCursorInjected(tabId) {
-  if (injectedTabs.has(tabId)) return;
-  try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['cursor.js'] });
-    injectedTabs.add(tabId);
-  } catch (_) {}
-}
-
-function removeCursor() {
-  if (state.tabId) chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_REMOVE' }).catch(() => {});
-}
-
-// ── Mouse events ──────────────────────────────────────────────────────────
-// Native (system-wide): offscreen forwards directly to local WS server.
-// Browser fallback:     background dispatches via chrome.debugger.
-
-async function handleMouseEvent(event) {
-  const ok = await ensureDebugger();
-  if (!ok) return;
-
-  const tab = await getActiveTab();
-  const w = tab?.width || 1280, h = tab?.height || 800;
-
-  switch (event.type) {
-    case 'move':
-      state.cursorX = Math.max(0, Math.min(w - 1, state.cursorX + event.dx));
-      state.cursorY = Math.max(0, Math.min(h - 1, state.cursorY + event.dy));
-      await ensureCursorInjected(state.tabId);
-      chrome.tabs.sendMessage(state.tabId, { type: 'CURSOR_MOVE', x: state.cursorX, y: state.cursorY }).catch(() => {});
-      await sendDebuggerEvent({ type: 'mouseMoved', x: state.cursorX, y: state.cursorY, button: 'none', buttons: 0, modifiers: 0, pointerType: 'mouse' });
-      break;
-    case 'click': {
-      const { cursorX: x, cursorY: y } = state;
-      await sendDebuggerEvent({ type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1, modifiers: 0, pointerType: 'mouse' });
-      await sendDebuggerEvent({ type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1, modifiers: 0, pointerType: 'mouse' });
-      break;
-    }
-    case 'rightclick': {
-      const { cursorX: x, cursorY: y } = state;
-      await sendDebuggerEvent({ type: 'mousePressed', x, y, button: 'right', buttons: 2, clickCount: 1, modifiers: 0, pointerType: 'mouse' });
-      await sendDebuggerEvent({ type: 'mouseReleased', x, y, button: 'right', buttons: 0, clickCount: 1, modifiers: 0, pointerType: 'mouse' });
-      break;
-    }
-    case 'scroll':
-      await sendDebuggerEvent({ type: 'mouseWheel', x: state.cursorX, y: state.cursorY, deltaX: event.dx || 0, deltaY: event.dy || 0, modifiers: 0, pointerType: 'mouse' });
-      break;
-  }
-}
-
-// ── Native server launcher ────────────────────────────────────────────────
-// Uses native messaging to launch server.py as a detached background process.
-// Falls back silently if the host isn't installed (user hasn't run install.sh).
-
-let lastNativeLaunch = 0;
-
-function launchNativeServer() {
-  const now = Date.now();
-  if (now - lastNativeLaunch < 30_000) return; // 30s cooldown
-  lastNativeLaunch = now;
-
-  const port = chrome.runtime.connectNative('io.github.mouseremote');
-  port.postMessage({ action: 'launch' });
-  port.onMessage.addListener(() => port.disconnect());
-  port.onDisconnect.addListener(() => {
-    if (chrome.runtime.lastError) {
-      console.log('[MouseRemote] Native host not installed — run native/install.sh');
-    }
-  });
-}
-
 // ── Broadcast ─────────────────────────────────────────────────────────────
 
 function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => {}); }
@@ -226,8 +87,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Offscreen reports local server connect/disconnect
     case 'NATIVE_STATUS':
       state.nativeMode = message.connected;
-      if (message.connected) removeCursor(); // native mode takes over, clear the overlay
-      else launchNativeServer();
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
       break;
 
@@ -262,15 +121,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'PEER_DISCONNECTED':
       state.connected = false;
-      removeCursor();
       broadcast({ type: 'STATE_UPDATE', ...publicState() });
-      break;
-
-    // Only reaches here when native server is NOT available (offscreen routes
-    // directly to WS when it is, never sending MOUSE_EVENT to background)
-    case 'MOUSE_EVENT':
-      console.log('[MouseRemote] MOUSE_EVENT:', message.event?.type);
-      handleMouseEvent(message.event);
       break;
   }
 });
@@ -280,7 +131,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function init() {
   await loadAuth();
   await initOffscreenPeer();
-  launchNativeServer();
 }
 
 init().catch(console.error);

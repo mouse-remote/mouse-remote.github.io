@@ -18,7 +18,7 @@ function phoneUrl(peerId) {
 }
 
 function applyState({ peerId, connected, user, nativeMode }) {
-  modeBadge.textContent = nativeMode ? 'System' : 'Browser';
+  modeBadge.style.display = nativeMode ? '' : 'none';
   modeBadge.className = nativeMode ? 'system' : '';
   // Auth section
   if (user) {
