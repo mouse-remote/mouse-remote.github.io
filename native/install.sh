@@ -10,7 +10,7 @@ echo "────────────────────────�
 
 echo ""
 echo "Installing Python dependencies..."
-pip3 install pynput websockets
+pip3 install pyobjc-framework-Quartz websockets
 
 # ── LaunchAgent (auto-starts server on login) ─────────────────────────────
 

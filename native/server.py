@@ -6,7 +6,7 @@ Run this from Terminal to enable system-wide mouse control.
 The Chrome extension auto-connects to ws://localhost:9999.
 
 Requirements:
-    pip3 install pynput websockets
+    pip3 install pyobjc-framework-Quartz websockets
 
 macOS Accessibility (one-time):
     System Settings → Privacy & Security → Accessibility → add Terminal.app
@@ -25,10 +25,9 @@ except ImportError:
     missing.append('websockets')
 
 try:
-    from pynput.mouse import Controller, Button
-    mouse = Controller()
+    import Quartz
 except ImportError:
-    missing.append('pynput')
+    missing.append('pyobjc-framework-Quartz')
 
 if missing:
     print(f"\n  Missing packages: {', '.join(missing)}")
@@ -40,6 +39,41 @@ if missing:
 PORT = 9999
 SCROLL_DIV = 60  # increase → slower scroll, decrease → faster scroll
 
+# ── Mouse control ─────────────────────────────────────────────────────────
+# Uses CGEventPost(kCGHIDEventTap) so events are real HID-level input.
+# This triggers hot corners, Mission Control, and all system UI —
+# unlike CGDisplayMoveCursorToPoint which only moves the cursor visually.
+
+def _post(event):
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+
+def _pos():
+    p = Quartz.CGEventGetLocation(Quartz.CGEventCreate(None))
+    return p.x, p.y
+
+def mouse_move(dx, dy):
+    x, y = _pos()
+    pt = Quartz.CGPoint(x + dx, y + dy)
+    _post(Quartz.CGEventCreateMouseEvent(None, Quartz.kCGEventMouseMoved, pt, Quartz.kCGMouseButtonLeft))
+
+def mouse_click(right=False):
+    x, y = _pos()
+    pt = Quartz.CGPoint(x, y)
+    if right:
+        down, up, btn = Quartz.kCGEventRightMouseDown, Quartz.kCGEventRightMouseUp, Quartz.kCGMouseButtonRight
+    else:
+        down, up, btn = Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp, Quartz.kCGMouseButtonLeft
+    _post(Quartz.CGEventCreateMouseEvent(None, down, pt, btn))
+    _post(Quartz.CGEventCreateMouseEvent(None, up,   pt, btn))
+
+def mouse_scroll(dx, dy):
+    # kCGScrollEventUnitLine: positive = scroll up, negative = scroll down
+    _post(Quartz.CGEventCreateScrollWheelEvent(
+        None, Quartz.kCGScrollEventUnitLine, 2,
+        int(-dy / SCROLL_DIV),
+        int( dx / SCROLL_DIV),
+    ))
+
 # ── Handler ───────────────────────────────────────────────────────────────
 
 async def handle(ws):
@@ -50,17 +84,10 @@ async def handle(ws):
             try:
                 e = json.loads(raw)
                 t = e.get('type')
-                if t == 'move':
-                    mouse.move(e.get('dx', 0), e.get('dy', 0))
-                elif t == 'click':
-                    mouse.click(Button.left)
-                elif t == 'rightclick':
-                    mouse.click(Button.right)
-                elif t == 'scroll':
-                    mouse.scroll(
-                        e.get('dx', 0) / SCROLL_DIV,
-                        -e.get('dy', 0) / SCROLL_DIV,
-                    )
+                if   t == 'move':       mouse_move(e.get('dx', 0), e.get('dy', 0))
+                elif t == 'click':      mouse_click()
+                elif t == 'rightclick': mouse_click(right=True)
+                elif t == 'scroll':     mouse_scroll(e.get('dx', 0), e.get('dy', 0))
             except Exception as ex:
                 print(f"  ✗ Event error: {ex}")
     except Exception as ex:
@@ -72,10 +99,8 @@ async def handle(ws):
 async def main():
     print(f"  python: {sys.executable}")
     try:
-        mouse.move(1, 0)
-        mouse.move(-1, 0)
-        pos = mouse.position
-        print(f"  mouse control: OK (position {pos[0]:.0f}, {pos[1]:.0f})")
+        x, y = _pos()
+        print(f"  mouse control: OK (position {x:.0f}, {y:.0f})")
     except Exception as e:
         print(f"  mouse control: FAILED — {e}")
         print(f"  fix: System Settings → Privacy & Security → Accessibility → + → {sys.executable}")

@@ -23,7 +23,7 @@ cd native
 ./install.sh
 ```
 
-This installs a macOS LaunchAgent that runs `server.py` on login (auto-restarts if it crashes). Requires Python 3 with `pynput` and `websockets`.
+This installs a macOS LaunchAgent that runs `server.py` on login (auto-restarts if it crashes). Requires Python 3 with `pyobjc-framework-Quartz` and `websockets`.
 
 **One-time macOS permission:** System Settings → Privacy & Security → Accessibility → add Terminal.app (or whatever runs `python3`).
 
