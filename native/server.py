@@ -43,29 +43,37 @@ SCROLL_DIV = 60  # increase → slower scroll, decrease → faster scroll
 # kCGEventSourceStateHIDSystemState makes synthetic events look like real
 # hardware input. NULL source marks events as synthetic and macOS system
 # services (Dock auto-hide, hot corners, Mission Control) filter them out.
-_src = None  # initialised in main() after Quartz is confirmed available
+#
+# Cursor position is tracked locally rather than read back from the HID
+# state, which may not update synchronously between events. Local tracking
+# with explicit screen clamping guarantees the cursor reaches screen edges
+# and corners, which is required for hot corners and Dock auto-hide.
+_src   = None   # initialised in main()
+_cur_x = 0.0
+_cur_y = 0.0
+_sw    = 0.0    # screen width
+_sh    = 0.0    # screen height
 
 def _post(event):
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 
-def _pos():
-    p = Quartz.CGEventGetLocation(Quartz.CGEventCreate(_src))
-    return p.x, p.y
+def _click_pos():
+    return Quartz.CGPoint(_cur_x, _cur_y)
 
 def mouse_move(dx, dy):
-    x, y = _pos()
-    pt = Quartz.CGPoint(x + dx, y + dy)
+    global _cur_x, _cur_y
+    _cur_x = max(0, min(_sw, _cur_x + dx))
+    _cur_y = max(0, min(_sh, _cur_y + dy))
+    pt = Quartz.CGPoint(_cur_x, _cur_y)
     event = Quartz.CGEventCreateMouseEvent(_src, Quartz.kCGEventMouseMoved, pt, Quartz.kCGMouseButtonLeft)
-    # Set delta fields so the event looks like real hardware movement.
-    # Without these, deltas are 0 and the Dock ignores the event for
-    # hot corner / edge detection (it uses deltas to filter out warps).
+    # Delta fields distinguish real movement from cursor warps; system UI
+    # (hot corners, Dock) may ignore events where both deltas are zero.
     Quartz.CGEventSetIntegerValueField(event, Quartz.kCGMouseEventDeltaX, int(dx))
     Quartz.CGEventSetIntegerValueField(event, Quartz.kCGMouseEventDeltaY, int(dy))
     _post(event)
 
 def mouse_click(right=False):
-    x, y = _pos()
-    pt = Quartz.CGPoint(x, y)
+    pt = _click_pos()
     if right:
         down, up, btn = Quartz.kCGEventRightMouseDown, Quartz.kCGEventRightMouseUp, Quartz.kCGMouseButtonRight
     else:
@@ -104,9 +112,17 @@ async def handle(ws):
 # ── Main ──────────────────────────────────────────────────────────────────
 
 async def main():
-    global _src
+    global _src, _cur_x, _cur_y, _sw, _sh
     _src = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
+
+    bounds = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
+    _sw, _sh = bounds.size.width, bounds.size.height
+
+    p = Quartz.CGEventGetLocation(Quartz.CGEventCreate(_src))
+    _cur_x, _cur_y = p.x, p.y
+
     print(f"  python: {sys.executable}")
+
     import ctypes
     _ax = ctypes.cdll.LoadLibrary('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices')
     _ax.AXIsProcessTrusted.restype = ctypes.c_bool
@@ -114,11 +130,9 @@ async def main():
     print(f"  accessibility: {'OK' if trusted else 'NOT GRANTED — hot corners will not work'}")
     if not trusted:
         print(f"  fix: System Settings → Privacy & Security → Accessibility → + → {sys.executable}")
-    try:
-        x, y = _pos()
-        print(f"  mouse control: OK (position {x:.0f}, {y:.0f})")
-    except Exception as e:
-        print(f"  mouse control: FAILED — {e}")
+
+    print(f"  screen: {_sw:.0f}x{_sh:.0f}  cursor: ({_cur_x:.0f}, {_cur_y:.0f})")
+    print(f"  mouse control: OK")
     print(f"\n  Mouse Remote server running on ws://localhost:{PORT}")
     print(f"  Keep this window open. Ctrl+C to stop.\n")
     # origins=None → accept connections from any origin (including chrome-extension://)
