@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,7 +13,7 @@
 
     :root {
       --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
-      --accent: #7c3aed; --accent-dim: #4c1d95;
+      --accent: #7c3aed; --accent-dim: #4c1d95; --touchpad: #0d0d14;
       --green: #22c55e; --amber: #f59e0b; --red: #f87171;
       --text: #e2e8f0; --muted: #6b7280;
     }
@@ -22,7 +23,7 @@
     #app { height: 100%; display: flex; flex-direction: column; }
 
     /* ── Top bar ────────────────────── */
-    #topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #topbar { display: flex; align-items: center; gap: 10px; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     #status-dot { width: 9px; height: 9px; border-radius: 50%; background: #374151; transition: background 0.3s; flex-shrink: 0; }
     #status-dot.connected  { background: var(--green); box-shadow: 0 0 8px #22c55e60; }
     #status-dot.connecting { background: var(--amber); animation: pulse 1.2s infinite; }
@@ -34,14 +35,15 @@
     #user-chip { display: none; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
     #user-chip.visible { display: flex; }
     #user-chip img { width: 20px; height: 20px; border-radius: 50%; }
-    #user-chip button { background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; padding: 2px 5px; border-radius: 3px; }
-    #user-chip button:hover { color: var(--red); }
+    #user-chip button { background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; min-width: 44px; min-height: 44px; border-radius: 3px; display: flex; align-items: center; justify-content: center; }
+    #user-chip button:hover, #user-chip button:active { color: var(--red); }
 
     #speed-wrap { display: none; align-items: center; gap: 6px; }
     #speed-wrap.visible { display: flex; }
     #speed-wrap label { font-size: 11px; color: var(--muted); }
-    #speed { -webkit-appearance: none; width: 70px; height: 3px; background: var(--border); border-radius: 2px; outline: none; }
-    #speed::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+    #speed { -webkit-appearance: none; width: 70px; height: 44px; background: transparent; outline: none; }
+    #speed::-webkit-slider-runnable-track { height: 3px; background: var(--border); border-radius: 2px; }
+    #speed::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); margin-top: -9.5px; }
 
     /* ── Screens ─────────────────────── */
     .screen { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; gap: 18px; text-align: center; }
@@ -51,13 +53,13 @@
 
     /* Auth gate */
     .github-btn { display: flex; align-items: center; justify-content: center; gap: 10px; background: #24292f; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; padding: 14px 24px; cursor: pointer; width: 100%; max-width: 300px; transition: background 0.15s; }
-    .github-btn:hover { background: #353b43; }
+    .github-btn:hover, .github-btn:active { background: #353b43; }
     .divider { font-size: 12px; color: var(--muted); }
     #peer-input { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 15px; font-family: 'SF Mono','Fira Code',monospace; padding: 12px 14px; outline: none; text-align: center; letter-spacing: 0.05em; width: 100%; max-width: 300px; }
     #peer-input:focus { border-color: var(--accent); }
     #peer-input::placeholder { color: var(--muted); letter-spacing: 0; font-style: italic; font-family: inherit; }
-    #btn-manual-go { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; font-weight: 500; padding: 12px; cursor: pointer; width: 100%; max-width: 300px; transition: background 0.15s; }
-    #btn-manual-go:hover { background: #1e1e2e; }
+    #btn-manual-go { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; font-weight: 500; padding: 14px; cursor: pointer; width: 100%; max-width: 300px; transition: background 0.15s; }
+    #btn-manual-go:hover, #btn-manual-go:active:not(:disabled) { background: #1e1e2e; }
     #btn-manual-go:disabled { color: var(--muted); cursor: default; }
     #auth-error { font-size: 12px; color: var(--red); max-width: 280px; display: none; }
 
@@ -66,14 +68,14 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     #conn-label { font-size: 16px; font-weight: 500; }
     #conn-sub   { font-size: 13px; color: var(--muted); }
-    #btn-abort  { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; font-size: 13px; padding: 8px 16px; cursor: pointer; }
-    #btn-abort:hover { border-color: var(--red); color: var(--red); }
+    #btn-abort  { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; font-size: 13px; padding: 13px 16px; cursor: pointer; }
+    #btn-abort:hover, #btn-abort:active { border-color: var(--red); color: var(--red); }
     #conn-error { font-size: 12px; color: var(--red); display: none; max-width: 280px; }
 
     /* ── Touchpad ────────────────────── */
     #touchpad-view { flex: 1; display: none; flex-direction: column; }
     #touchpad-view.active { display: flex; }
-    #touchpad { flex: 1; background: #0d0d14; position: relative; touch-action: none; user-select: none; }
+    #touchpad { flex: 1; background: var(--touchpad); position: relative; touch-action: none; user-select: none; }
 
     .ripple { position: absolute; width: 48px; height: 48px; border-radius: 50%; background: rgba(124,58,237,0.25); transform: translate(-50%,-50%) scale(0); pointer-events: none; animation: ripple-out 0.5s ease-out forwards; }
     @keyframes ripple-out { to { transform: translate(-50%,-50%) scale(2.5); opacity: 0; } }
@@ -82,11 +84,42 @@
     #scroll-hint.visible { opacity: 1; }
     #pad-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: rgba(255,255,255,0.05); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; pointer-events: none; }
 
-    #actionbar { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); flex-shrink: 0; }
+    #actionbar { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
     .action-btn { background: var(--surface); border: none; color: var(--muted); font-size: 12px; font-weight: 500; padding: 16px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; border-right: 1px solid var(--border); transition: background 0.1s, color 0.1s; user-select: none; -webkit-user-select: none; }
     .action-btn:last-child { border-right: none; }
     .action-btn:active { background: #1e1e30; }
-    .action-btn.active { background: var(--accent-dim); color: #c4b5fd; }
+    .action-btn.active { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+
+    /* ── Chat button (topbar) ──────────── */
+    #btn-chat { display: none; background: none; border: none; color: var(--muted); padding: 4px 6px; cursor: pointer; border-radius: 6px; }
+    #btn-chat.visible { display: flex; align-items: center; }
+    #btn-chat:hover { color: var(--text); }
+
+    /* ── Chat overlay ─────────────────── */
+    #chat-overlay { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: none; flex-direction: column; }
+    #chat-overlay.active { display: flex; }
+
+    #chat-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #btn-chat-back { background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; display: flex; align-items: center; }
+    #btn-chat-back:hover { color: var(--text); }
+    #chat-title { font-size: 15px; font-weight: 600; flex: 1; }
+    #model-select { background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 11px; border-radius: 6px; padding: 4px 6px; outline: none; cursor: pointer; }
+    #model-select:focus { border-color: var(--accent); }
+
+    #chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    #chat-messages:empty::after { content: 'Ask anything…'; color: var(--muted); font-size: 14px; margin: auto; }
+
+    .msg { max-width: 85%; padding: 10px 13px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+    .msg.assistant { align-self: flex-start; background: var(--surface); color: var(--text); border-bottom-left-radius: 4px; }
+    .msg.error { align-self: center; background: none; color: var(--red); font-size: 12px; }
+
+    #chat-input-row { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    #chat-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; color: var(--text); font-size: 15px; padding: 10px 14px; outline: none; resize: none; max-height: 120px; overflow-y: auto; font-family: inherit; }
+    #chat-input:focus { border-color: var(--accent); }
+    #btn-send { background: var(--accent); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+    #btn-send:disabled { background: var(--border); cursor: default; }
+    #btn-send:not(:disabled):hover { background: #6d28d9; }
   </style>
 </head>
 <body>
@@ -103,6 +136,27 @@
     <div id="speed-wrap">
       <label for="speed">Speed</label>
       <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.5">
+    </div>
+    <button id="btn-chat" title="Chat">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+  </div>
+
+  <!-- Chat overlay -->
+  <div id="chat-overlay">
+    <div id="chat-header">
+      <button id="btn-chat-back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span id="chat-title">Chat</span>
+      <select id="model-select"></select>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <textarea id="chat-input" rows="1" placeholder="Message…"></textarea>
+      <button id="btn-send" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
     </div>
   </div>
 

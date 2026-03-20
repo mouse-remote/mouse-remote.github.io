@@ -1,4 +1,5 @@
 import { getAuth, logout, startLogin, derivePeerId, CLIENT_ID } from './auth.js';
+import { MODELS, initChat, clearHistory, send as chatSend, abort as chatAbort } from './chat.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -7,9 +8,11 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   $('touchpad-view').classList.remove('active');
   $('speed-wrap').classList.remove('visible');
+  $('btn-chat').classList.remove('visible');
   if (name === 'touchpad') {
     $('touchpad-view').classList.add('active');
     $('speed-wrap').classList.add('visible');
+    if (auth) $('btn-chat').classList.add('visible');
   } else {
     $('screen-' + name).classList.add('active');
   }
@@ -197,11 +200,79 @@ $('btn-abort').addEventListener('click', () => {
   showScreen('auth'); setStatus('Mouse Remote', '');
 });
 
+// ── Chat ───────────────────────────────────────────────────────────────────
+// Populate model selector
+MODELS.forEach((m, i) => {
+  const opt = document.createElement('option');
+  opt.value = m.id; opt.textContent = m.label;
+  $('model-select').appendChild(opt);
+});
+
+function openChat() { $('chat-overlay').classList.add('active'); }
+function closeChat() { $('chat-overlay').classList.remove('active'); }
+
+function appendMsg(role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  $('chat-messages').appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return div;
+}
+
+let chatBusy = false;
+
+function submitChat() {
+  const text = $('chat-input').value.trim();
+  if (!text || chatBusy) return;
+  chatBusy = true;
+  $('btn-send').disabled = true;
+  $('chat-input').value = '';
+  $('chat-input').style.height = '';
+
+  appendMsg('user', text);
+  const bubble = appendMsg('assistant', '…');
+
+  let first = true;
+  chatSend(text, $('model-select').value, {
+    onChunk(delta) {
+      if (first) { bubble.textContent = ''; first = false; }
+      bubble.textContent += delta;
+      bubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    },
+    onDone() {
+      chatBusy = false;
+      $('btn-send').disabled = $('chat-input').value.trim().length === 0;
+    },
+    onError(msg) {
+      bubble.remove();
+      appendMsg('error', msg);
+      chatBusy = false;
+      $('btn-send').disabled = $('chat-input').value.trim().length === 0;
+    },
+  });
+}
+
+$('btn-chat').addEventListener('click', openChat);
+$('btn-chat-back').addEventListener('click', () => { chatAbort(); closeChat(); });
+
+$('chat-input').addEventListener('input', function () {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  $('btn-send').disabled = this.value.trim().length === 0 || chatBusy;
+});
+
+$('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitChat(); }
+});
+
+$('btn-send').addEventListener('click', submitChat);
+
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
   auth = getAuth();
 
-  if (auth) showUser(auth.user);
+  if (auth) { showUser(auth.user); initChat(auth.token); }
 
   // Manual mode: peer ID provided directly in URL (extension popup link for no-auth users)
   if (manualPeerId) {
