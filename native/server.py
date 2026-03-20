@@ -101,7 +101,10 @@ async def main():
     global _src
     _src = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
     print(f"  python: {sys.executable}")
-    trusted = Quartz.AXIsProcessTrusted()
+    import ctypes
+    _ax = ctypes.cdll.LoadLibrary('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices')
+    _ax.AXIsProcessTrusted.restype = ctypes.c_bool
+    trusted = _ax.AXIsProcessTrusted()
     print(f"  accessibility: {'OK' if trusted else 'NOT GRANTED — hot corners will not work'}")
     if not trusted:
         print(f"  fix: System Settings → Privacy & Security → Accessibility → + → {sys.executable}")
