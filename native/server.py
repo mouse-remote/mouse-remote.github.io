@@ -101,12 +101,15 @@ async def main():
     global _src
     _src = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
     print(f"  python: {sys.executable}")
+    trusted = Quartz.AXIsProcessTrusted()
+    print(f"  accessibility: {'OK' if trusted else 'NOT GRANTED — hot corners will not work'}")
+    if not trusted:
+        print(f"  fix: System Settings → Privacy & Security → Accessibility → + → {sys.executable}")
     try:
         x, y = _pos()
         print(f"  mouse control: OK (position {x:.0f}, {y:.0f})")
     except Exception as e:
         print(f"  mouse control: FAILED — {e}")
-        print(f"  fix: System Settings → Privacy & Security → Accessibility → + → {sys.executable}")
     print(f"\n  Mouse Remote server running on ws://localhost:{PORT}")
     print(f"  Keep this window open. Ctrl+C to stop.\n")
     # origins=None → accept connections from any origin (including chrome-extension://)
