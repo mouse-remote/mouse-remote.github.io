@@ -40,21 +40,22 @@ PORT = 9999
 SCROLL_DIV = 60  # increase → slower scroll, decrease → faster scroll
 
 # ── Mouse control ─────────────────────────────────────────────────────────
-# Uses CGEventPost(kCGHIDEventTap) so events are real HID-level input.
-# This triggers hot corners, Mission Control, and all system UI —
-# unlike CGDisplayMoveCursorToPoint which only moves the cursor visually.
+# kCGEventSourceStateHIDSystemState makes synthetic events look like real
+# hardware input. NULL source marks events as synthetic and macOS system
+# services (Dock auto-hide, hot corners, Mission Control) filter them out.
+_src = None  # initialised in main() after Quartz is confirmed available
 
 def _post(event):
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 
 def _pos():
-    p = Quartz.CGEventGetLocation(Quartz.CGEventCreate(None))
+    p = Quartz.CGEventGetLocation(Quartz.CGEventCreate(_src))
     return p.x, p.y
 
 def mouse_move(dx, dy):
     x, y = _pos()
     pt = Quartz.CGPoint(x + dx, y + dy)
-    _post(Quartz.CGEventCreateMouseEvent(None, Quartz.kCGEventMouseMoved, pt, Quartz.kCGMouseButtonLeft))
+    _post(Quartz.CGEventCreateMouseEvent(_src, Quartz.kCGEventMouseMoved, pt, Quartz.kCGMouseButtonLeft))
 
 def mouse_click(right=False):
     x, y = _pos()
@@ -63,13 +64,13 @@ def mouse_click(right=False):
         down, up, btn = Quartz.kCGEventRightMouseDown, Quartz.kCGEventRightMouseUp, Quartz.kCGMouseButtonRight
     else:
         down, up, btn = Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp, Quartz.kCGMouseButtonLeft
-    _post(Quartz.CGEventCreateMouseEvent(None, down, pt, btn))
-    _post(Quartz.CGEventCreateMouseEvent(None, up,   pt, btn))
+    _post(Quartz.CGEventCreateMouseEvent(_src, down, pt, btn))
+    _post(Quartz.CGEventCreateMouseEvent(_src, up,   pt, btn))
 
 def mouse_scroll(dx, dy):
     # kCGScrollEventUnitLine: positive = scroll up, negative = scroll down
     _post(Quartz.CGEventCreateScrollWheelEvent(
-        None, Quartz.kCGScrollEventUnitLine, 2,
+        _src, Quartz.kCGScrollEventUnitLine, 2,
         int(-dy / SCROLL_DIV),
         int( dx / SCROLL_DIV),
     ))
@@ -97,6 +98,8 @@ async def handle(ws):
 # ── Main ──────────────────────────────────────────────────────────────────
 
 async def main():
+    global _src
+    _src = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
     print(f"  python: {sys.executable}")
     try:
         x, y = _pos()
