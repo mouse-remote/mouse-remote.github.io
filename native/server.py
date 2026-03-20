@@ -55,7 +55,13 @@ def _pos():
 def mouse_move(dx, dy):
     x, y = _pos()
     pt = Quartz.CGPoint(x + dx, y + dy)
-    _post(Quartz.CGEventCreateMouseEvent(_src, Quartz.kCGEventMouseMoved, pt, Quartz.kCGMouseButtonLeft))
+    event = Quartz.CGEventCreateMouseEvent(_src, Quartz.kCGEventMouseMoved, pt, Quartz.kCGMouseButtonLeft)
+    # Set delta fields so the event looks like real hardware movement.
+    # Without these, deltas are 0 and the Dock ignores the event for
+    # hot corner / edge detection (it uses deltas to filter out warps).
+    Quartz.CGEventSetIntegerValueField(event, Quartz.kCGMouseEventDeltaX, int(dx))
+    Quartz.CGEventSetIntegerValueField(event, Quartz.kCGMouseEventDeltaY, int(dy))
+    _post(event)
 
 def mouse_click(right=False):
     x, y = _pos()
