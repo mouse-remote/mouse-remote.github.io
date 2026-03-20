@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="color-scheme" content="dark">
   <title>Mouse Remote</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,9 +34,9 @@
 
     button { cursor: pointer; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; padding: 7px 11px; transition: background 0.15s; }
     .btn-github { display: flex; align-items: center; justify-content: center; gap: 8px; background: #24292f; color: #fff; padding: 10px; width: 100%; }
-    .btn-github:hover { background: #353b43; }
+    .btn-github:hover, .btn-github:active { background: #353b43; }
     .btn-signout { background: #1a1a2e; color: #6b7280; font-size: 11px; padding: 5px 8px; border-radius: 5px; }
-    .btn-signout:hover { background: #2d1b1b; color: #f87171; }
+    .btn-signout:hover, .btn-signout:active { background: #2d1b1b; color: #f87171; }
 
     .status-text { font-size: 11px; color: #6b7280; text-align: center; }
     .status-text.connected { color: #22c55e; }
@@ -52,11 +53,11 @@
     .url-box.loading { color: #4b5563; }
 
     .btn-copy { background: #2d2d3e; color: #e2e8f0; white-space: nowrap; }
-    .btn-copy:hover { background: #383852; }
+    .btn-copy:hover, .btn-copy:active { background: #383852; }
     .btn-copy.copied { background: #166534; color: #bbf7d0; }
 
     .btn-open { width: 100%; background: #4f46e5; color: #fff; padding: 9px; }
-    .btn-open:hover { background: #6366f1; }
+    .btn-open:hover, .btn-open:active { background: #6366f1; }
     .btn-open:disabled { background: #2d2d3e; color: #4b5563; cursor: default; }
 
     #qr-wrap { display: flex; justify-content: center; padding: 4px 0 2px; }
