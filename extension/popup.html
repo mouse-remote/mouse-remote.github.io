@@ -59,6 +59,9 @@
     .btn-open:hover { background: #6366f1; }
     .btn-open:disabled { background: #2d2d3e; color: #4b5563; cursor: default; }
 
+    #qr-wrap { display: flex; justify-content: center; padding: 4px 0 2px; }
+    #qr-wrap canvas, #qr-wrap table { border-radius: 6px; }
+
     footer { padding: 10px 16px; border-top: 1px solid #1e1e2e; font-size: 10px; color: #374151; text-align: center; }
   </style>
 </head>
@@ -110,11 +113,13 @@
         </div>
       </div>
       <button class="btn-open" id="btn-open" disabled>Open on Phone</button>
+      <div id="qr-wrap"></div>
     </div>
 
   </div>
 
   <footer>Mouse Remote · mouse-remote.github.io</footer>
+  <script src="qrcode.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

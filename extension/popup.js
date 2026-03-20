@@ -59,7 +59,21 @@ function applyState({ peerId, connected, user, nativeMode }) {
 
     btnOpen.disabled = false;
     btnOpen.onclick = () => chrome.tabs.create({ url });
+
+    renderQR(url);
   }
+}
+
+function renderQR(url) {
+  const wrap = document.getElementById('qr-wrap');
+  wrap.innerHTML = '';
+  const qr = qrcode(0, 'L');
+  qr.addData(url);
+  qr.make();
+  const img = document.createElement('img');
+  img.src = qr.createDataURL(4, 2);
+  img.style.borderRadius = '6px';
+  wrap.appendChild(img);
 }
 
 // Fetch current state from background on open
