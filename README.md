@@ -3,7 +3,7 @@
 Control your Mac's mouse with your phone via WebRTC P2P.
 
 ```
-Phone (touchpad) ──WebRTC──> Chrome Extension ──WebSocket──> server.py ──pynput──> OS
+Phone (touchpad) ──WebRTC──> Chrome Extension ──WebSocket──> server.py ──Quartz──> OS
 ```
 
 No relay server — signaling via PeerJS cloud, then direct P2P.
@@ -63,7 +63,7 @@ phone/
   signin.html       Desktop sign-in page (opened by extension)
 
 native/
-  server.py         WebSocket server → pynput mouse control
+  server.py         WebSocket server → Quartz mouse control
   install.sh        Installs LaunchAgent + Python deps
 ```
 

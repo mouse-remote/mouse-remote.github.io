@@ -8,7 +8,6 @@ let state = {
   nativeMode: false, // true when offscreen has an active ws://localhost:9999
 };
 
-// Must match phone/auth.js:derivePeerId
 function derivePeerId(userId) { return 'mr-' + userId; }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -84,46 +83,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return true;
 
-    // Offscreen reports local server connect/disconnect
-    case 'NATIVE_STATUS':
-      state.nativeMode = message.connected;
-      broadcast({ type: 'STATE_UPDATE', ...publicState() });
-      break;
-
-    // Content script bridged auth from phone page localStorage
+    // Async cases: handle internally and return early
     case 'AUTH_FROM_PAGE':
       saveAuth(message.auth).then(() => {
         initOffscreenPeer();
         broadcast({ type: 'STATE_UPDATE', ...publicState() });
       });
       // Auto-close the dedicated sign-in tab; leave the phone controller open on mobile.
-      if (sender.tab?.url?.includes('/signin.html')) {
-        chrome.tabs.remove(sender.tab.id);
-      }
-      break;
+      if (sender.tab?.url?.includes('/signin.html')) chrome.tabs.remove(sender.tab.id);
+      return;
 
     case 'SIGN_OUT':
       clearAuth().then(() => {
         initOffscreenPeer();
         broadcast({ type: 'STATE_UPDATE', ...publicState() });
       });
-      break;
+      return;
 
-    case 'PEER_READY':
-      state.peerId = message.peerId;
-      broadcast({ type: 'STATE_UPDATE', ...publicState() });
-      break;
-
-    case 'PEER_CONNECTED':
-      state.connected = true;
-      broadcast({ type: 'STATE_UPDATE', ...publicState() });
-      break;
-
-    case 'PEER_DISCONNECTED':
-      state.connected = false;
-      broadcast({ type: 'STATE_UPDATE', ...publicState() });
-      break;
+    // Sync state mutations — all fall through to broadcast below
+    case 'NATIVE_STATUS':    state.nativeMode = message.connected; break;
+    case 'PEER_READY':       state.peerId = message.peerId;        break;
+    case 'PEER_CONNECTED':   state.connected = true;               break;
+    case 'PEER_DISCONNECTED':state.connected = false;              break;
   }
+
+  broadcast({ type: 'STATE_UPDATE', ...publicState() });
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────

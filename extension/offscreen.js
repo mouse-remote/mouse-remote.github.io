@@ -24,12 +24,12 @@ function connectNativeWs() {
   nativeWs.onopen = () => {
     console.log('[Offscreen] Native WS connected');
     clearTimeout(wsRetryTimer);
-    send({ type: 'NATIVE_STATUS', connected: true });
+    notify({ type: 'NATIVE_STATUS', connected: true });
   };
 
   nativeWs.onclose = () => {
     console.log('[Offscreen] Native WS closed — retrying in 3s');
-    send({ type: 'NATIVE_STATUS', connected: false });
+    notify({ type: 'NATIVE_STATUS', connected: false });
     nativeWs = null;
     wsRetryTimer = setTimeout(connectNativeWs, 3000);
   };
@@ -42,7 +42,7 @@ function connectNativeWs() {
 
 connectNativeWs();
 
-function send(message) {
+function notify(message) {
   chrome.runtime.sendMessage(message).catch(() => {});
 }
 
@@ -79,7 +79,7 @@ function setupPeer(peerId, userId) {
 
   peer.on('open', (id) => {
     console.log('[Offscreen] Peer open:', id);
-    send({ type: 'PEER_READY', peerId: id });
+    notify({ type: 'PEER_READY', peerId: id });
   });
 
   peer.on('connection', (incoming) => {
@@ -98,12 +98,12 @@ function setupPeer(peerId, userId) {
         authTimeout = setTimeout(() => {
           console.warn('[Offscreen] Auth timeout — closing connection');
           closeConn();
-          send({ type: 'PEER_DISCONNECTED' });
+          notify({ type: 'PEER_DISCONNECTED' });
         }, 8000);
       } else {
         // No auth configured (unauthenticated / manual mode)
         phoneVerified = true;
-        send({ type: 'PEER_CONNECTED' });
+        notify({ type: 'PEER_CONNECTED' });
       }
     });
 
@@ -114,18 +114,17 @@ function setupPeer(peerId, userId) {
           const valid = await verifyToken(data.token, expectedUserId);
           if (valid) {
             phoneVerified = true;
-            send({ type: 'PEER_CONNECTED' });
+            notify({ type: 'PEER_CONNECTED' });
           } else {
             console.warn('[Offscreen] Phone auth rejected');
             closeConn();
-            send({ type: 'PEER_DISCONNECTED' });
+            notify({ type: 'PEER_DISCONNECTED' });
           }
         } else {
           console.warn('[Offscreen] Data before auth — type:', data?.type, '(expected "auth")');
         }
         return; // ignore everything until verified
       }
-      console.log('[Offscreen] →', data?.type, data);
       if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
         nativeWs.send(JSON.stringify(data));
       } else {
@@ -136,14 +135,14 @@ function setupPeer(peerId, userId) {
     conn.on('close', () => {
       clearTimeout(authTimeout);
       closeConn();
-      send({ type: 'PEER_DISCONNECTED' });
+      notify({ type: 'PEER_DISCONNECTED' });
     });
 
     conn.on('error', (err) => {
       console.error('[Offscreen] conn error:', err);
       clearTimeout(authTimeout);
       closeConn();
-      send({ type: 'PEER_DISCONNECTED' });
+      notify({ type: 'PEER_DISCONNECTED' });
     });
   });
 

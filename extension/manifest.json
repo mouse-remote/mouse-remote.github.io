@@ -4,7 +4,7 @@
   "version": "1.2.0",
   "description": "Control your browser with your phone via WebRTC P2P",
   "permissions": ["tabs", "offscreen", "storage"],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": ["https://mouse-remote.github.io/*"],
   "background": {
     "service_worker": "background.js"
   },

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Removes the old native messaging manifest if previously installed.
-MANIFEST="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/io.mouseremote.native.json"
-if [ -f "$MANIFEST" ]; then
-  rm "$MANIFEST"
-  echo "✓ Removed old native messaging manifest"
+PLIST="$HOME/Library/LaunchAgents/io.github.mouseremote.server.plist"
+if [ -f "$PLIST" ]; then
+  launchctl unload "$PLIST" 2>/dev/null || true
+  rm "$PLIST"
+  echo "✓ Removed LaunchAgent"
 else
   echo "Nothing to remove"
 fi
